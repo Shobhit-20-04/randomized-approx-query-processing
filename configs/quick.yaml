@@ -1,0 +1,28 @@
+mode: quick
+stream_sizes:
+  - 2000
+  - 10000
+distributions:
+  - uniform
+  - zipfian
+seeds:
+  - 42
+  - 101
+query_sample_size: 500
+
+bloom_filter:
+  target_fprs:
+    - 0.05
+    - 0.01
+
+count_min_sketch:
+  epsilons:
+    - 0.1
+    - 0.05
+  deltas:
+    - 0.05
+
+hyperloglog:
+  precisions:
+    - 10
+    - 12

@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this research software or benchmark suite, please cite it as below."
+authors:
+  - family-names: "Sharma"
+    given-names: "Shobhit"
+title: "Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog"
+version: 0.1.0
+date-released: 2026-10-10
+url: "https://github.com/Shobhit-20-04/randomized-approx-query-processing"
+keywords:
+  - "approximate query processing"
+  - "bloom filter"
+  - "count-min sketch"
+  - "hyperloglog"
+  - "randomized data structures"
+  - "data streaming"
+  - "benchmarking"
