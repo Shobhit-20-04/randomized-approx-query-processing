@@ -7,7 +7,7 @@ name = "approx-query-processing"
 version = "0.1.0"
 description = "Randomized Data Structures for Approximate Query Processing: Bloom Filter, Count-Min Sketch, and HyperLogLog"
 readme = "README.md"
-authors = [{ name = "Shobhit", email = "researcher@example.com" }]
+authors = [{ name = "Shobhit Agrawal", email = "shobhitagrawal2004@gmail.com" }]
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [

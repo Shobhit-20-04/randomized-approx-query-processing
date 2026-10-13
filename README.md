@@ -213,8 +213,8 @@ All 11 required publication figures are saved in both high-resolution PNG (300 D
 If you use this research implementation or benchmark suite, please cite:
 
 ```bibtex
-@misc{sharma2026randomized,
-  author = {Shobhit Sharma},
+@misc{agrawal2026randomized,
+  author = {Shobhit Agrawal},
   title = {Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog},
   year = {2026},
   publisher = {GitHub},

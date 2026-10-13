@@ -68,7 +68,7 @@ def generate_academic_report(
     lines = [
         "# Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog",
         "",
-        "**Author:** Shobhit Sharma  ",
+        "**Author:** Shobhit Agrawal  ",
         "**Degree:** M.Tech Computer Science & Engineering  ",
         f"**Date:** {today_str}  ",
         "**Repository:** [randomized-approx-query-processing](https://github.com/Shobhit-20-04/randomized-approx-query-processing)",

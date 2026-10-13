@@ -44,3 +44,4 @@ Thumbs.db
 # Large generated data (keep small sample/results for report, ignore temporary dumps)
 *.tmp
 *.log
+*.zip

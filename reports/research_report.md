@@ -1,6 +1,6 @@
 # Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog
 
-**Author:** Shobhit Sharma  
+**Author:** Shobhit Agrawal  
 **Degree:** M.Tech Computer Science & Engineering  
 **Date:** 2026-10-10  
 **Repository:** [randomized-approx-query-processing](https://github.com/Shobhit-20-04/randomized-approx-query-processing)

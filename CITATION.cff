@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this research software or benchmark suite, please cite it as below."
 authors:
-  - family-names: "Sharma"
+  - family-names: "Agrawal"
     given-names: "Shobhit"
 title: "Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog"
 version: 0.1.0
