@@ -3,6 +3,10 @@ message: "If you use this research software or benchmark suite, please cite it a
 authors:
   - family-names: "Agrawal"
     given-names: "Shobhit"
+    email: "shobhitagrawal2004@gmail.com"
+  - family-names: "Pawar"
+    given-names: "Mayuri Rajendra"
+    email: "mayuripawar2603@gmail.com"
 title: "Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog"
 version: 0.1.0
 date-released: 2026-10-10

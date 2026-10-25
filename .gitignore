@@ -45,3 +45,7 @@ Thumbs.db
 *.tmp
 *.log
 *.zip
+
+# Research papers and manuscripts (excluded from public code repository)
+paper/
+*.pdf
