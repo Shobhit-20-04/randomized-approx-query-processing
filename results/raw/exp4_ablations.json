@@ -1,0 +1,114 @@
+[
+  {
+    "name": "Full AdaLog (Default)",
+    "config": {
+      "use_stash": true,
+      "use_cu": true,
+      "bits": 8,
+      "var": "A",
+      "hll": "coupled"
+    },
+    "width": 6682,
+    "mae": 0.5412762818148285,
+    "peak_error": 19,
+    "fpr": 0.5589,
+    "rse": 0.03994240648380499,
+    "stashed_items": 64
+  },
+  {
+    "name": "No Stash (-Stash)",
+    "config": {
+      "use_stash": false,
+      "use_cu": true,
+      "bits": 8,
+      "var": "A",
+      "hll": "coupled"
+    },
+    "width": 6898,
+    "mae": 15.708373293987458,
+    "peak_error": 79,
+    "fpr": 0.5496,
+    "rse": 0.01568719363009435,
+    "stashed_items": 0
+  },
+  {
+    "name": "No CU (-Conservative)",
+    "config": {
+      "use_stash": true,
+      "use_cu": false,
+      "bits": 8,
+      "var": "A",
+      "hll": "coupled"
+    },
+    "width": 6682,
+    "mae": 1.2787901143489486,
+    "peak_error": 33,
+    "fpr": 0.5589,
+    "rse": 0.03994240648380499,
+    "stashed_items": 64
+  },
+  {
+    "name": "16-bit Counters",
+    "config": {
+      "use_stash": true,
+      "use_cu": true,
+      "bits": 16,
+      "var": "A",
+      "hll": "coupled"
+    },
+    "width": 3627,
+    "mae": 1.7113242345997788,
+    "peak_error": 365,
+    "fpr": 0.9108,
+    "rse": 0.004260077406344218,
+    "stashed_items": 64
+  },
+  {
+    "name": "32-bit Counters",
+    "config": {
+      "use_stash": true,
+      "use_cu": true,
+      "bits": 32,
+      "var": "A",
+      "hll": "coupled"
+    },
+    "width": 1895,
+    "mae": 5.475396532644781,
+    "peak_error": 88,
+    "fpr": 0.9989,
+    "rse": 0.00605217415448365,
+    "stashed_items": 64
+  },
+  {
+    "name": "Membership Variant B",
+    "config": {
+      "use_stash": true,
+      "use_cu": true,
+      "bits": 8,
+      "var": "B",
+      "hll": "coupled"
+    },
+    "width": 6682,
+    "mae": 0.5412762818148285,
+    "peak_error": 19,
+    "fpr": 0.9991,
+    "rse": 0.03994240648380499,
+    "stashed_items": 64
+  },
+  {
+    "name": "HLL Decoupled (m=1024)",
+    "config": {
+      "use_stash": true,
+      "use_cu": true,
+      "bits": 8,
+      "var": "A",
+      "hll": "decoupled"
+    },
+    "width": 7744,
+    "mae": 0.3980818886019919,
+    "peak_error": 14,
+    "fpr": 0.4711,
+    "rse": 0.03959293385517083,
+    "stashed_items": 64
+  }
+]

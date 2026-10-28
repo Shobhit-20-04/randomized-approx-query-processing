@@ -1,0 +1,94 @@
+{
+  "verdict": "PASS",
+  "gate1_min_coverage_pct": 99.82756418444245,
+  "gate1_pass": true,
+  "gate2_all_mae_reduced": true,
+  "gate2_pass": true,
+  "datasets": [
+    {
+      "alpha": 1.05,
+      "coverage_pct": 99.85062326156383,
+      "avg_width": 23.31127021736891,
+      "raw_mae": 18.107293705573298,
+      "debiased_mae": 9.950139074894405,
+      "mae_reduction_pct": 45.04899938839661,
+      "live_fpr": 1.0,
+      "measured_fpr": 1.0,
+      "cardinality_true": 19414,
+      "cardinality_estimate": 19911,
+      "cardinality_ci": [
+        18643,
+        21179
+      ],
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.15,
+      "coverage_pct": 99.82756418444245,
+      "avg_width": 16.055179460978415,
+      "raw_mae": 11.308149188913015,
+      "debiased_mae": 5.369331970877507,
+      "mae_reduction_pct": 52.51803030559744,
+      "live_fpr": 1.0,
+      "measured_fpr": 1.0,
+      "cardinality_true": 15658,
+      "cardinality_estimate": 15790,
+      "cardinality_ci": [
+        14784,
+        16796
+      ],
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.25,
+      "coverage_pct": 99.89649818871831,
+      "avg_width": 10.914265999654994,
+      "raw_mae": 6.339313437985164,
+      "debiased_mae": 2.7210626185958255,
+      "mae_reduction_pct": 57.07638303083077,
+      "live_fpr": 0.9986666666666667,
+      "measured_fpr": 0.9992,
+      "cardinality_true": 11594,
+      "cardinality_estimate": 11984,
+      "cardinality_ci": [
+        11221,
+        12747
+      ],
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.35,
+      "coverage_pct": 99.95040912472105,
+      "avg_width": 7.8574262335730225,
+      "raw_mae": 3.3467641953880487,
+      "debiased_mae": 1.655095462434912,
+      "mae_reduction_pct": 50.546397481015006,
+      "live_fpr": 0.9768606420701236,
+      "measured_fpr": 0.9797,
+      "cardinality_true": 8066,
+      "cardinality_estimate": 7918,
+      "cardinality_ci": [
+        7414,
+        8422
+      ],
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.5,
+      "coverage_pct": 100.0,
+      "avg_width": 5.57368896925859,
+      "raw_mae": 1.0090415913200723,
+      "debiased_mae": 0.7502260397830018,
+      "mae_reduction_pct": 25.649641577060926,
+      "live_fpr": 0.8156236638814814,
+      "measured_fpr": 0.8181,
+      "cardinality_true": 4424,
+      "cardinality_estimate": 4490,
+      "cardinality_ci": [
+        4204,
+        4776
+      ],
+      "cardinality_covered": true
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "budget_kb": 16,
+    "raw_bytes": 14336,
+    "compressed_bytes": 16042,
+    "compression_ratio_pct": -11.900111607142861,
+    "compression_time_ms": 9.225699992384762,
+    "decompression_time_ms": 3.5439999774098396,
+    "lossless_verified": true
+  },
+  {
+    "budget_kb": 32,
+    "raw_bytes": 30720,
+    "compressed_bytes": 30669,
+    "compression_ratio_pct": 0.16601562500000444,
+    "compression_time_ms": 20.221999962814152,
+    "decompression_time_ms": 7.2969000320881605,
+    "lossless_verified": true
+  },
+  {
+    "budget_kb": 64,
+    "raw_bytes": 63488,
+    "compressed_bytes": 55502,
+    "compression_ratio_pct": 12.578755040322577,
+    "compression_time_ms": 40.4032000224106,
+    "decompression_time_ms": 15.01450000796467,
+    "lossless_verified": true
+  },
+  {
+    "budget_kb": 128,
+    "raw_bytes": 129024,
+    "compressed_bytes": 96511,
+    "compression_ratio_pct": 25.199187748015873,
+    "compression_time_ms": 78.28840002184734,
+    "decompression_time_ms": 30.84399999352172,
+    "lossless_verified": true
+  },
+  {
+    "budget_kb": 256,
+    "raw_bytes": 260096,
+    "compressed_bytes": 164004,
+    "compression_ratio_pct": 36.944820374015755,
+    "compression_time_ms": 152.4399999761954,
+    "decompression_time_ms": 50.16230000182986,
+    "lossless_verified": true
+  }
+]

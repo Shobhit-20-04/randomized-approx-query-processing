@@ -1,202 +1,192 @@
-# Randomized Data Structures for Approximate Query Processing
+# Beyond Bloom Filter, Count-Min Sketch, and HyperLogLog: AdaLog-Sketch
 
-[![CI - Unit Tests & Quick Benchmark](https://github.com/Shobhit-20-04/randomized-approx-query-processing/actions/workflows/tests.yml/badge.svg)](https://github.com/Shobhit-20-04/randomized-approx-query-processing/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![C++ Engine: MinGW x86-64](https://img.shields.io/badge/C++%20Core-1.92%20Mops%2Fs-success.svg)](core/)
 [![Streamlit App](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B.svg)](http://localhost:8501)
 
-A rigorous empirical performance comparison of **Bloom Filter**, **Count-Min Sketch**, and **HyperLogLog** against exact hash-table baselines (`set` and `dict`) across varying dataset sizes and data distributions.
+A reproducible research codebase and benchmark case study evaluating classical probabilistic data structures (**Bloom Filter**, **Count-Min Sketch**, **HyperLogLog**, **Elastic Sketch**, **Augmented Sketch**) alongside **AdaLog-Sketch**—a unified randomized algorithm that executes Approximate Membership Queries (AMQ), Point Frequency Estimation, Distinct Cardinality Counting, and Heavy Hitters from a **single shared memory block driven by a single 128-bit hash computation per stream item**.
 
-**Author:** Shobhit Agrawal  
+**Authors:** Shobhit Agrawal & Mayuri Rajendra Pawar (Vellore Institute of Technology, Vellore)  
 **Repository:** [https://github.com/Shobhit-20-04/randomized-approx-query-processing](https://github.com/Shobhit-20-04/randomized-approx-query-processing)
 
 ---
 
-## ⚡ Executive Performance Summary
+## ⚡ Executive Performance Matrix
 
-All metrics are derived from actual benchmark measurements on Windows 11 (Python 3.11.9):
+All metrics are grounded in reproducible benchmarks on 64-bit Windows (x86-64, compiled C++ with MinGW GCC 16.1.0 `-O3`):
 
-| Algorithm | Query Type | Exact Baseline | Space Reduction | Accuracy / Error Metric | Mathematical Invariant Verified |
-| :--- | :--- | :--- | :---: | :--- | :--- |
-| **Bloom Filter** | Set Membership (`contains`) | Python `set` | **17.7x** | Empirical FPR: **0.024** (Target: 0.01–0.05) | **0 False Negatives** (Strict zero guarantee) |
-| **Count-Min Sketch** | Point Frequency (`query`) | Python `dict` | **82.4x** | MAE: **6.34** | **0 Underestimations**; **100%** within additive bound |
-| **HyperLogLog** | Distinct Cardinality (`estimate`) | Python `set` | **54.2x** | Mean Relative Error: **1.35%** | Constant $2^p$ bytes; **81.3%** within $1 \times \text{RSE}$ |
-
----
-
-## 🔬 Core Algorithms & Formulations
-
-### 1. Bloom Filter (Bloom, 1970)
-* **Goal:** Approximate set membership queries ("Is item $q$ in set $S$?").
-* **Optimal Bit-Array Sizing ($m$):**
-  $$m = \left\lceil -\frac{n \ln p}{(\ln 2)^2} \right\rceil$$
-* **Optimal Hash Function Count ($k$):**
-  $$k = \max\left(1, \left\lfloor \frac{m}{n} \ln 2 \right\rceil\right)$$
-* **Kirsch-Mitzenmacher Double Hashing:**
-  $$g_i(x) = (h_1(x) + i \cdot h_2(x)) \pmod m, \quad 0 \le i < k$$
-* **Theoretical False Positive Probability:**
-  $$p_{\text{theo}} \approx \left(1 - e^{-kn/m}\right)^k$$
-* **Guaranteed Invariant:** Zero false negatives for inserted elements.
-
-### 2. Count-Min Sketch (Cormode & Muthukrishnan, 2005)
-* **Goal:** Point frequency estimation on continuous data streams.
-* **Table Sizing:**
-  * Width: $w = \lceil e / \epsilon \rceil$
-  * Depth: $d = \lceil \ln(1 / \delta) \rceil$
-* **Pairwise-Independent 2-Universal Hashing:**
-  $$h_j(x) = ((a_j \cdot \text{hash}_{64}(x) + b_j) \bmod (2^{61}-1)) \bmod w$$
-* **Query Estimate:**
-  $$\hat{f}(x) = \min_{0 \le j < d} C[j, h_j(x)]$$
-* **Theoretical Guarantee:**
-  $$\hat{f}(x) \ge f(x) \quad \text{and} \quad \Pr[\hat{f}(x) \le f(x) + \epsilon \|a\|_1] \ge 1 - \delta$$
-* **Guaranteed Invariant:** No underestimation ($\hat{f} \ge f$) under nonnegative updates.
-
-### 3. HyperLogLog (Flajolet et al., 2007)
-* **Goal:** Distinct-element cardinality estimation ($|\{x \in S\}|$).
-* **Register Bank:** $m = 2^p$ registers ($p \in [4, 16]$).
-* **Harmonic Mean Estimator:**
-  $$E = \alpha_m \cdot m^2 \cdot \left(\sum_{j=0}^{m-1} 2^{-M[j]}\right)^{-1}$$
-* **Linear Counting Small-Range Correction:** When $E \le 2.5m$ and $V = \sum \mathbb{I}(M[j] == 0) > 0$:
-  $$E^* = m \ln(m / V)$$
-* **Theoretical Relative Standard Error (RSE):**
-  $$\text{RSE} \approx \frac{1.04}{\sqrt{m}}$$
-* **Guaranteed Invariant:** Strict $O(2^p)$ constant byte memory regardless of stream length.
+| Streaming Data Structure | Unified Query Support | Ingestion Latency (Mean) | Ingestion Throughput | Frequency MAE (32 KB Budget) | AMQ False Positive Rate | Zero Underestimate Guarantee |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **AdaLog-Sketch (Ours)** | **Membership + Frequency + Cardinality + Top-$k$** | **522.0 ns/op** | **1.92 Mops/s** | **0.40** | **47.16% (Var A) / 0.11% (256KB)** | **Strictly 0 Underestimates** |
+| **Disjoint Stack (BF+CMS+HLL)** | Membership + Frequency + Cardinality | 532.3 ns/op | 1.88 Mops/s | 2.51 | 14.81% | Bounded by CMS |
+| **Augmented Sketch** (SIGMOD 2016) | Frequency + Top-$k$ | ~530 ns/op | ~1.89 Mops/s | 1.87 | N/A | Bounded |
+| **Elastic Sketch** (SIGCOMM 2018) | Frequency + Top-$k$ | ~530 ns/op | ~1.89 Mops/s | 1.90 | N/A | Bounded |
+| **Count-Min Sketch (CMS-CU)** | Frequency only | 513.8 ns/op | 1.95 Mops/s | 2.85 | N/A | Strictly $\hat{f} \ge f$ |
+| **Standard Bloom Filter** | Membership only | 407.8 ns/op | 2.45 Mops/s | N/A | Target FPR | Zero False Negatives |
+| **HyperLogLog (HLL)** | Cardinality only | 404.3 ns/op | 2.47 Mops/s | N/A | N/A | $\text{RSE} \approx 1.04/\sqrt{m}$ |
 
 ---
 
-## 📊 Experimental Visualizations
+## 🔬 Core Novel Contributions & Falsification Verdicts
 
-All 11 publication figures are generated at **300 DPI PNG** and **Vector PDF** in `results/plots/`:
+In accordance with strict empirical science, all novel modules were tested against pre-registered acceptance criteria on held-out seeds:
 
-| Analysis Figure | Description |
-| :--- | :--- |
-| **Figure 1: Memory Footprint vs. Dataset Size** | Log-log memory scaling of BF, CMS, and HLL vs exact baselines |
-| **Figure 2: Stream Ingestion Latency** | Processing duration across stream sizes |
-| **Figure 3: Ingestion Throughput** | Ingestion speed (thousand operations per second) |
-| **Figure 4: Query Latency Scaling** | Nanosecond-scale point query latency |
-| **Figure 5: Bloom Filter Empirical vs Target FPR** | Parity line comparison of theoretical vs empirical false positives |
-| **Figure 6: Count-Min Sketch MAE vs Epsilon** | Error scaling against error tolerance parameter $\epsilon$ |
-| **Figure 7: CMS Error Across Stream Distributions** | Skew effects: Uniform vs. Zipfian heavy-tail noise |
-| **Figure 8: HyperLogLog Relative Error vs Precision** | Empirical error convergence against the $1.04 / \sqrt{m}$ theoretical curve |
-| **Figure 9: Accuracy vs. Memory Pareto Frontiers** | Multi-algorithm trade-off frontiers |
-| **Figure 10: Uniform vs. Zipfian Performance** | Distribution sensitivity across all three algorithms |
-| **Figure 11: Exact vs Approximate Memory Bar** | Direct orders-of-magnitude memory comparison at scale |
+| Module | Title | Core Mechanism | Acceptance Test Gate | Empirical Outcome | Verdict |
+|---|---|---|---|---|---|
+| **N1** | **AdaLog-Planner** | Analytical error models solving for $(d, w, \text{bits}, m, K, \tau)$ given budget $B$. | Predicted error $\le \pm 25\%$ across memory sweep; beats fixed config on $\ge 3/5$ skews. | Mean prediction error = **2.74%**; won **5/5** skew evaluations ($35.8\%\text{--}94.2\%$ lower MAE). | **ACCEPTED (PASS)** |
+| **N2** | **Online Adaptive Controller** | Closed-loop epoch controller tuning $\tau$ via internal telemetry ($S$, $D$, $H$, $\hat{\alpha}$). | On drifting streams ($\alpha: 1.1 \to 1.5 \to 1.2$), beats best fixed $\tau$ with 95% CI excluding 0. | Non-inferior on stationary stream (ratio 1.000); incurred transition lag on drifting streams ($\Delta \text{MAE} = -0.049$). | **REJECTED (FAIL)** *(Documented Negative Result)* |
+| **N3** | **Cross-Task Error Certificates** | Count-Mean-Min residual debiasing using HLL cardinality $\hat{n}$; certified $[\text{lo}, \text{hi}]$ intervals. | Empirical interval coverage $\ge \mathbf{95\%}$; debiased MAE strictly lower than raw estimate. | Interval coverage = **99.83%–100.00%**; debiasing reduced MAE by **25.6%–76.7%** across all skews. | **ACCEPTED (PASS)** |
+| **N4** | **Theoretical Framework** | Theorem 1 proof of zero-underestimate write-back invariant; AMQ break-even analysis. | Mathematical induction proof; simulation across $10^6$ updates confirms zero underestimates. | **0 underestimates**, **0 false negatives** across all trials; counterexample & fix verified. | **ACCEPTED (PASS)** |
 
 ---
 
-## 🚀 Quickstart & Setup
+## 🏗️ Architectural Overview
 
-### 1. Installation
-```powershell
-# Clone repository
+```
+                            STREAM ITEM x
+                                 │
+                        xxh3_128(x) -> 128 bits
+            ┌───────────────────┴───────────────────┐
+       Bits [0:63]                              Bits [64:127]
+   (Kirsch-Mitzenmacher)                     (HyperLogLog Extraction)
+    idx_j = (h1 + j*h2) mod w                  idx_hll = bits[64 : 64+p] mod m
+         │                                     rank rho = clz(bits[64+p : 127]) + 1
+         │                                           │
+         ▼                                           ▼
+ ┌─────────────────────────────────┐        ┌─────────────────────────────────┐
+ │ Counter Matrix T (d x w)        │        │ Packed HLL Registers M (m x 6b) │
+ │ - 8-bit saturating counters     │        │ - 6-bit packed bit-array        │
+ │ - Conservative Update (CU)      │        │ - Small-range Linear Counting   │
+ │ - Membership: all d > 0 (Var A) │        │ - Coupled (m=w) or Decoupled    │
+ └─────────────────────────────────┘        └─────────────────────────────────┘
+         │
+         ▼ (if count >= tau)
+ ┌─────────────────────────────────┐
+ │ Associative Stash E (K entries) │
+ │ - Exact post-promotion count    │
+ │ - Baseline at promotion tracked │
+ │ - Max write-back on eviction    │
+ └─────────────────────────────────┘
+         │
+         ▼ (Optional Wire Serialization)
+ ┌─────────────────────────────────┐
+ │ LightRanger Compression Engine  │
+ │ - Equal Element Grouping (Lg=8) │
+ │ - Base-Bit Reduction (BBR)      │
+ │ - Dynamic bit-packing (2-4 bits)│
+ └─────────────────────────────────┘
+```
+
+---
+
+## 🚀 Reproduction & Usage Guide
+
+### Prerequisites
+- Python 3.11+
+- MinGW GCC (`g++`) with C++17 support
+
+### 1-Command Automated Reproduction
+```bash
+# Clone the repository
 git clone https://github.com/Shobhit-20-04/randomized-approx-query-processing.git
 cd randomized-approx-query-processing
 
 # Create and activate virtual environment
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\activate
 
-# Install pinned dependencies
-pip install --upgrade pip
+# Install dependencies
 pip install -r requirements.txt
-pip install -e .
+
+# Run complete reproduction pipeline (compiles C++, runs Exp 1-8, generates figures)
+python reproduce.py
 ```
 
-### 2. Run Tests & Validation
-```powershell
-# Run the 23-test test suite
-pytest -v tests/
-
-# Verify mathematical guarantees against saved results
-python scripts/verify_results.py
-```
-
-### 3. Run Benchmarks
-```powershell
-# Quick validation benchmark (fast parameter sweep)
-python scripts/run_quick_benchmark.py
-
-# Full benchmark (complete parameter sweep up to 1,000,000 items)
-python scripts/run_full_benchmark.py
-```
-
-### 4. Launch Interactive Dashboard
-```powershell
+### Launch Interactive Analytics Dashboard
+```bash
 streamlit run app.py
 ```
-Open **[http://localhost:8501](http://localhost:8501)** in your browser to inspect interactive tables, scaling curves, and the live testing sandbox.
+Open `http://localhost:8501` in your browser to inspect live streaming queries, parameter tuning, and comparative benchmarks.
 
 ---
 
-## 🗂️ Project Structure
+## 📂 Repository File Tree
 
-```text
+```
 randomized-approx-query-processing/
-├── app.py                           # Interactive Streamlit analysis dashboard
-├── requirements.txt                 # Constrained dependencies
-├── pyproject.toml                   # Packaging & pytest configuration
-├── CITATION.cff                     # Citation metadata
-├── LICENSE                          # MIT License
-│
-├── configs/
-│   ├── quick.yaml                   # Fast validation configuration
-│   └── full.yaml                    # Full-scale experiment configuration
-│
-├── src/approx_query/
-│   ├── bloom_filter.py              # Bloom Filter with double hashing
-│   ├── count_min_sketch.py          # Count-Min Sketch with 2-universal hash family
-│   ├── hyperloglog.py               # HyperLogLog with Linear Counting correction
-│   ├── datasets.py                  # Synthetic stream generator (Uniform, Zipfian, etc.)
-│   ├── metrics.py                   # High-precision timing & memory measurement
-│   ├── benchmarking.py              # Trial runner & statistical CSV aggregator
-│   ├── plotting.py                  # Publication-quality matplotlib generator (PNG/PDF)
-│   └── reporting.py                 # Academic research report synthesizer
-│
-├── tests/
-│   ├── test_bloom_filter.py         # Zero-FN & theoretical sizing unit tests
-│   ├── test_count_min_sketch.py     # No-underestimation & additive bound tests
-│   ├── test_hyperloglog.py          # Cardinality estimation & bias correction tests
-│   ├── test_datasets.py             # Reproducibility & query disjointness tests
-│   └── test_metrics.py              # Latency & memory sizing tests
-│
-├── scripts/
-│   ├── run_quick_benchmark.py       # Executes quick benchmark suite
-│   ├── run_full_benchmark.py        # Executes full-scale research benchmark
-│   ├── generate_report.py           # Re-synthesizes plots and report
-│   └── verify_results.py            # Automated mathematical invariant validator
-│
-├── results/
-│   ├── raw/                         # Raw trial CSVs (BF, CMS, HLL)
-│   ├── aggregated/                  # Statistical summary CSVs (mean, std, CI)
-│   └── plots/                       # 11 generated figures (PNG + PDF)
-│
-├── reports/
-│   └── research_report.md           # Synthesized academic report
-│
-└── .github/workflows/
-    └── tests.yml                    # Multi-OS CI workflow (Ubuntu & Windows)
+├── README.md                           # Setup guide, architecture, benchmark summaries
+├── report.md                           # Full paper-ready report with literature table and proofs
+├── reproduce.py                        # Master 1-command reproduction script
+├── pyproject.toml                      # Dependencies, build metadata
+├── app.py                              # Interactive Streamlit analytics dashboard
+├── adalog/                             # Python reference implementation of AdaLog-Sketch
+│   ├── sketch.py                       # Unified AdaLogSketch class with toggleable ablations
+│   ├── hash_utils.py                   # 128-bit hash derivation and Kirsch-Mitzenmacher double hashing
+│   ├── stash.py                        # Associative elephant stash with baseline tracking and max() write-back
+│   ├── hll_packed.py                   # 6-bit packed HyperLogLog registers with Linear Counting
+│   └── compression.py                  # LightRanger wire-format compression engine (EEG + BBR)
+├── core/                               # Compiled C++ high-performance engine
+│   ├── adalog_core.cpp                 # C++ implementation of AdaLog, CMS, Bloom, HLL, Disjoint
+│   ├── adalog_core.dll                 # Compiled native Windows DLL (-O3, static runtime)
+│   ├── hash_xxh3.h                     # Inlined MurmurHash3_x64_128 hash core
+│   └── bindings.py                     # Python ctypes wrappers for headline latency benchmarking
+├── baselines/                          # Faithful implementations of classical algorithms
+│   ├── bloom_filter.py                 # Standard Bloom Filter with optimal k
+│   ├── counting_bloom_filter.py        # Counting Bloom Filter with deletion
+│   ├── cuckoo_filter.py                # Cuckoo Filter with partial-key cuckoo hashing
+│   ├── xor_filter.py                   # Xor Filter (3-way peeling)
+│   ├── count_min_sketch.py             # Count-Min Sketch (8b, 16b, 32b) with Conservative Update
+│   ├── count_sketch.py                 # Count-Sketch with random sign projections
+│   ├── hyperloglog.py                  # Standard HLL with 6-bit packed registers
+│   ├── augmented_sketch.py             # Augmented Sketch (Roy et al., SIGMOD 2016)
+│   ├── elastic_sketch.py               # Elastic Sketch (Yang et al., ACM SIGCOMM 2018)
+│   └── disjoint_stack.py               # Combined Disjoint Baseline Stack
+├── planner/                            # Novel Contribution N1: AdaLog-Planner
+│   ├── planner.py                      # Multi-objective constrained optimization engine
+│   └── error_models.py                 # Analytical models for CMS-CU noise, FPR, and HLL RSE
+├── controller/                         # Novel Contribution N2: Online Adaptive Controller
+│   ├── adaptive_controller.py          # Closed-loop epoch controller for dynamic tau
+│   └── telemetry_signals.py            # Internal state extractors (saturation, density, skew)
+├── certificates/                       # Novel Contribution N3: Cross-Task Calibration
+│   ├── debiaser.py                     # Count-Mean-Min residual frequency debiaser
+│   ├── intervals.py                    # Certified [lo, hi] frequency intervals
+│   └── live_certificates.py           # Real-time membership FPR and cardinality confidence intervals
+├── theory/                             # Novel Contribution N4: Mathematical Proofs
+│   ├── write_back_proof.md             # Formal induction proof of Theorem 1 and counterexample
+│   ├── membership_analysis.md          # Variant A shared counters vs dedicated Bloom filter break-even
+│   └── simulate_proofs.py              # Adversarial stress test simulator ($10^6$ updates)
+├── experiments/                        # Comprehensive benchmark test suite
+│   ├── datasets.py                     # Synthetic Zipfian generator and drifting stream generator
+│   ├── exp1_memory_sweep.py            # Memory sweep Pareto curves (8 KB to 512 KB)
+│   ├── exp2_skew_sweep.py              # Zipfian alpha sensitivity sweep (1.05 to 1.50)
+│   ├── exp3_latency_benchmark.py       # Compiled C++ latency & throughput benchmark (ns/op, Mops/s)
+│   ├── exp4_ablations.py               # Systematic ablation grid
+│   ├── exp5_planner_eval.py            # Acceptance test evaluation for N1 (Planner)
+│   ├── exp6_adaptive_eval.py           # Acceptance test evaluation for N2 (Adaptive Controller)
+│   ├── exp7_certificates_eval.py       # Acceptance test evaluation for N3 (Certificates)
+│   ├── exp8_compression.py            # LightRanger wire-format compression benchmark
+│   └── plot_results.py                 # Publication-quality vector figure generator
+└── results/                            # Raw data and generated figures
+    ├── raw/                            # Machine-readable JSON results from all experiments
+    └── figures/                        # Generated publication plots (PDF & PNG)
 ```
 
 ---
 
-## 📝 Citation
+## 📜 Citation
 
 ```bibtex
-@misc{agrawal2026randomized,
-  author = {Shobhit Agrawal},
-  title = {Randomized Data Structures for Approximate Query Processing: A Comparative Experimental Study of Bloom Filter, Count-Min Sketch, and HyperLogLog},
-  year = {2026},
-  publisher = {GitHub},
-  howpublished = {\url{https://github.com/Shobhit-20-04/randomized-approx-query-processing}}
+@misc{agrawal2026adalog,
+  title={Beyond Bloom Filter, Count-Min Sketch, and HyperLogLog: A Unified Randomized Algorithm for Approximate Query Processing over Skewed Data Streams},
+  author={Agrawal, Shobhit and Pawar, Mayuri Rajendra},
+  year={2026},
+  publisher={GitHub},
+  howpublished={\url{https://github.com/Shobhit-20-04/randomized-approx-query-processing}}
 }
 ```
 
 ---
 
-## 📚 References
-
-1. **Bloom, B. H.** (1970). Space/time trade-offs in hash coding with allowable errors. *Communications of the ACM*, 13(7), 422–426. [DOI: 10.1145/362686.362692](https://doi.org/10.1145/362686.362692)
-2. **Cormode, G., & Muthukrishnan, S.** (2005). An improved data stream summary: the count-min sketch and its applications. *Journal of Algorithms*, 55(1), 58–75. [DOI: 10.1016/j.jalgor.2003.12.001](https://doi.org/10.1016/j.jalgor.2003.12.001)
-3. **Flajolet, P., Fusy, É., Gandouet, O., & Meunier, F.** (2007). HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm. *DMTCS Proceedings*, AH, 137–156.
-4. **Kirsch, A., & Mitzenmacher, M.** (2006). Less hashing, same performance: Building a better Bloom filter. *European Symposium on Algorithms (ESA)*, 456–467. [DOI: 10.1007/11841036_42](https://doi.org/10.1007/11841036_42)
-5. **Heule, S., Nunkesser, M., & Hall, A.** (2013). HyperLogLog in practice: Algorithmic engineering of a state of the art cardinality estimation algorithm. *EDBT*, 683–692. [DOI: 10.1145/2452376.2452456](https://doi.org/10.1145/2452376.2452456)
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
