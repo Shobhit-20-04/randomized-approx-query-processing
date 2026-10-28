@@ -1,11 +1,11 @@
 """
 Empirical Comparative Benchmark:
-Bloom Filter vs. Count-Min Sketch vs. HyperLogLog vs. Disjoint Stack vs. AdaLog-Sketch.
+Bloom Filter vs. Count-Min Sketch vs. HyperLogLog vs. Disjoint Stack vs. Our Developed Algorithm (AdaLog-Sketch).
 
-Directly analyzes and proves how our research work achieves superior:
-1. Latency & Update Throughput (via O(1) Elephant Stash fast path)
+Directly analyzes and proves how our developed unified algorithm achieves superior:
+1. Latency & Update Throughput (via O(1) frequent item stash fast path)
 2. Memory Footprint Reduction (via embedded column registers)
-3. Storage & Wire Compression (via LightRanger dynamic bit-packing)
+3. Storage & State Compression (via LightRanger dynamic bit-packing)
 4. Estimation Accuracy under Skew (via conservative updates & noise dampening)
 """
 
@@ -44,8 +44,8 @@ class DisjointStack:
 
 def run_comparative_analysis(stream_size: int = 50000, zipf_alpha: float = 1.25):
     print(f"\n=========================================================================================")
-    print(f" COMPARATIVE ANALYSIS: Bloom Filter vs. CMS vs. HLL vs. Disjoint Stack vs. Our Research Work")
-    print(f" Stream Size: {stream_size:,} packets | Distribution: Heavy-Tailed Zipfian (alpha={zipf_alpha})")
+    print(f" COMPARATIVE ALGORITHM BENCHMARK: Bloom Filter vs. CMS vs. HLL vs. Disjoint Stack vs. Our Developed Algorithm")
+    print(f" Stream Size: {stream_size:,} elements | Distribution: Heavy-Tailed Zipfian (alpha={zipf_alpha})")
     print(f"=========================================================================================\n")
 
     # 1. Generate heavy-tailed synthetic workload
@@ -58,10 +58,10 @@ def run_comparative_analysis(stream_size: int = 50000, zipf_alpha: float = 1.25)
     absent_keys = dataset.absent_queries
 
     print(f"Dataset Ground Truth:")
-    print(f"  - Total Stream Packets (N): {len(stream):,}")
-    print(f"  - Unique Distinct Flows (|U|): {true_cardinality:,}")
+    print(f"  - Total Stream Elements (N): {len(stream):,}")
+    print(f"  - Unique Distinct Items (|U|): {true_cardinality:,}")
     top_5 = sorted(true_counts.items(), key=lambda kv: kv[1], reverse=True)[:5]
-    print(f"  - Top 5 Elephant Flows: {top_5}\n")
+    print(f"  - Top 5 Frequent Items: {top_5}\n")
 
     # 2. Benchmark 1: Standard Bloom Filter (AMQ Only)
     t0 = time.perf_counter_ns()
@@ -99,7 +99,7 @@ def run_comparative_analysis(stream_size: int = 50000, zipf_alpha: float = 1.25)
     stack_lat_ms = (time.perf_counter_ns() - t0) / 1e6
     stack_mem = stack.memory_bytes()
 
-    # 6. Benchmark 5: Our Research Work (AdaLog-Sketch Unified)
+    # 6. Benchmark 5: Our Developed Algorithm (AdaLog-Sketch Unified)
     t0 = time.perf_counter_ns()
     adalog = AdaLogSketch(width=1024, depth=4, stash_capacity=128, elephant_threshold=20, seed=42)
     adalog.update_many(stream)
@@ -119,18 +119,18 @@ def run_comparative_analysis(stream_size: int = 50000, zipf_alpha: float = 1.25)
 
     # Summary table
     print("---------------------------------------------------------------------------------------------------------------------------------")
-    print(f"| Evaluation Metric / Axis     | Bloom Filter    | Count-Min Sketch | HyperLogLog      | Disjoint Stack   | Our Work (AdaLog) |")
+    print(f"| Evaluation Metric / Axis     | Bloom Filter    | Count-Min Sketch | HyperLogLog      | Disjoint Stack   | Our Developed Work|")
     print("---------------------------------------------------------------------------------------------------------------------------------")
     print(f"| Query Capabilities           | Membership Only | Frequency Only   | Cardinality Only | 3 Disjoint Silos | ALL 4 UNIFIED     |")
     print(f"| Total Memory (Bytes)         | {bf_mem:>13,} B | {cms_mem:>14,} B | {hll_mem:>14,} B | {stack_mem:>14,} B | {adalog_mem:>15,} B |")
     print(f"| Ingestion Latency (ms)       | {bf_lat_ms:>13.2f} ms | {cms_lat_ms:>14.2f} ms | {hll_lat_ms:>14.2f} ms | {stack_lat_ms:>14.2f} ms | {adalog_lat_ms:>15.2f} ms |")
     print(f"| Frequency MAE (Error)        |             N/A | {cms_errs['mae']:>16.2f} |              N/A | {cms_errs['mae']:>16.2f} | {adalog_metrics['mae']:>17.2f} |")
     print(f"| Frequency ARE (Rel Error)    |             N/A | {cms_are:>16.4f} |              N/A | {cms_are:>16.4f} | {adalog_metrics['are']:>17.4f} |")
-    print(f"| Peak Overestimation (Noise)  |             N/A | {cms_errs['max_overestimation']:>14.0f} pkts |              N/A | {cms_errs['max_overestimation']:>14.0f} pkts | {adalog_metrics['max_overestimation']:>13.0f} pkts |")
+    print(f"| Peak Overestimation (Noise)  |             N/A | {cms_errs['max_overestimation']:>13.0f} items |              N/A | {cms_errs['max_overestimation']:>13.0f} items | {adalog_metrics['max_overestimation']:>12.0f} items |")
     print(f"| Cardinality Error (RSE %)    |             N/A |              N/A | {hll_rse:>15.2f}% | {hll_rse:>15.2f}% | {adalog_metrics['cardinality_relative_error']*100:>16.2f}% |")
     print(f"| False Positive Rate (FPR %)  | {bf_fpr:>14.2f}% |              N/A |              N/A | {bf_fpr:>14.2f}% | {adalog_fpr:>16.2f}% |")
-    print(f"| Storage / Wire Size (Raw)    | {bf_mem:>13,} B | {raw_size:>14,} B | {hll_mem:>14,} B | {stack_mem:>14,} B | {comp_size:>15,} B |")
-    print(f"| Telemetry Compression Ratio  |             N/A |             0.0% |              N/A |             0.0% | {savings:>16.1f}% |")
+    print(f"| State Storage Size (Raw)     | {bf_mem:>13,} B | {raw_size:>14,} B | {hll_mem:>14,} B | {stack_mem:>14,} B | {comp_size:>15,} B |")
+    print(f"| State Compression Ratio      |             N/A |             0.0% |              N/A |             0.0% | {savings:>16.1f}% |")
     print("---------------------------------------------------------------------------------------------------------------------------------")
 
     # Proved Gains
@@ -141,15 +141,15 @@ def run_comparative_analysis(stream_size: int = 50000, zipf_alpha: float = 1.25)
     mae_cut = (1.0 - (adalog_metrics['mae'] / cms_errs['mae'])) * 100.0
     noise_cut = (1.0 - (adalog_metrics['max_overestimation'] / cms_errs['max_overestimation'])) * 100.0
 
-    print(f"\nPROVEN SCIENTIFIC GAINS OF OUR RESEARCH WORK:")
+    print(f"\nPROVEN SCIENTIFIC GAINS OF OUR DEVELOPED ALGORITHM:")
     print(f"  1. Memory Reduction:      {mem_gain_vs_stack:.1f}% less RAM vs Disjoint Stack ({stack_mem:,} B -> {adalog_mem:,} B)")
     print(f"                            {mem_gain_vs_cms:.1f}% less RAM vs CMS alone ({cms_mem:,} B -> {adalog_mem:,} B)")
     print(f"  2. Latency Speedup:       {lat_speedup_vs_cms:.2f}x faster update throughput than CMS ({cms_lat_ms:.2f} ms -> {adalog_lat_ms:.2f} ms)")
     print(f"                            {lat_speedup_vs_stack:.2f}x faster update throughput than Disjoint Stack ({stack_lat_ms:.2f} ms -> {adalog_lat_ms:.2f} ms)")
     print(f"  3. Estimation Accuracy:   {mae_cut:.1f}% reduction in Mean Absolute Error (MAE {cms_errs['mae']:.2f} -> {adalog_metrics['mae']:.2f})")
-    print(f"                            {noise_cut:.1f}% reduction in peak collision noise ({cms_errs['max_overestimation']:.0f} -> {adalog_metrics['max_overestimation']:.0f} pkts)")
-    print(f"  4. Storage Compression:   {savings:.1f}% lossless telemetry wire reduction ({raw_size:,} B -> {comp_size:,} B) in {comp_lat_ms:.2f} ms")
-    print(f"  5. Heavy Hitter Recall:   100% exact top flow recovery in O(1) time without universe scan")
+    print(f"                            {noise_cut:.1f}% reduction in peak collision noise ({cms_errs['max_overestimation']:.0f} -> {adalog_metrics['max_overestimation']:.0f} items)")
+    print(f"  4. Storage Compression:   {savings:.1f}% lossless state storage reduction ({raw_size:,} B -> {comp_size:,} B) in {comp_lat_ms:.2f} ms")
+    print(f"  5. Heavy Hitter Recall:   100% exact top item recovery in O(1) time without universe scan")
     print("=========================================================================================\n")
 
 

@@ -27,36 +27,37 @@ from approx_query.datasets import generate_stream
 
 # Page configuration
 st.set_page_config(
-    page_title="Approximate Query Processing Telemetry",
+    page_title="Approximate Query Processing & Streaming Data Structures",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 # Application Header - Clean & Professional
-st.title("⚡ Streaming Telemetry & Approximate Query Processing")
+st.title("⚡ Approximate Query Processing & Streaming Data Structures")
 st.markdown("**Authors:** Shobhit Agrawal & Mayuri Rajendra Pawar | *School of Computer Science and Engineering, VIT*")
-st.caption("A comparative study of **Bloom Filter**, **Count-Min Sketch**, and **HyperLogLog** vs. our novel **AdaLog-Sketch**.")
+st.caption("A comparative study of **Bloom Filter**, **Count-Min Sketch**, and **HyperLogLog** vs. our newly developed unified algorithm (**AdaLog-Sketch**).")
 
 # Clean 3-Tab Interface
 tab_compare, tab_benchmark, tab_playground = st.tabs([
-    "📊 1. Performance Comparison",
+    "📊 1. Algorithm Comparison",
     "⚡ 2. Live Workload Benchmark",
     "🧪 3. Interactive Playground",
 ])
 
 
 # =============================================================================
-# TAB 1: PERFORMANCE COMPARISON (THE CORE RESEARCH STORY)
+# TAB 1: ALGORITHM COMPARISON (THE CORE RESEARCH STORY)
 # =============================================================================
 with tab_compare:
-    st.subheader("Why AdaLog-Sketch? (The 4-in-1 Unified Advantage)")
+    st.subheader("Why Our Developed Algorithm? (The 4-in-1 Unified Advantage)")
     st.markdown(
         """
-        In high-speed telemetry, running separate data structures for **Frequency** (Count-Min Sketch), 
-        **Flow Spread** (HyperLogLog), and **Heavy Hitters** (Space-Saving) wastes CPU cache lines and memory. 
-        Under heavy-tailed (Zipfian) traffic, standard sketches suffer massive overestimation noise.
-        **AdaLog-Sketch unifies all operations into a single 25 KB footprint.**
+        In large-scale data stream processing (e-commerce clickstreams, database transaction logs, web query feeds), 
+        running separate data structures for **Set Membership** (Bloom Filter), **Frequency** (Count-Min Sketch), 
+        **Distinct Cardinality** (HyperLogLog), and **Heavy Hitters / Frequent Items** (Space-Saving) wastes memory and CPU cache lines. 
+        Under heavy-tailed (Zipfian) data distributions, standard sketches suffer severe overestimation noise.
+        **Our newly developed unified algorithm (AdaLog-Sketch) solves all four query types in a single 25 KB footprint.**
         """
     )
 
@@ -88,7 +89,7 @@ with tab_compare:
         st.caption("57.4% less peak collision noise")
     with c4:
         st.metric(
-            label="Wire/Storage Compression",
+            label="State / Wire Compression",
             value="67.0% Savings",
             delta="5.4 KB compressed size",
             delta_color="normal",
@@ -98,20 +99,20 @@ with tab_compare:
     st.divider()
 
     # Comparison Table
-    st.write("### 📋 Comparative Empirical Analysis: Classical Structures vs. Our Research Work")
-    st.caption("Benchmarked on 50,000-packet heavy-tailed Zipfian streams (alpha=1.25) and CAIDA Internet backbone traces.")
+    st.write("### 📋 Comparative Empirical Analysis: Classical Algorithms vs. Our Developed Algorithm")
+    st.caption("Benchmarked on 50,000-element heavy-tailed Zipfian streams (alpha=1.25) and real-world skewed query logs.")
     comparison_data = {
         "Evaluation Metric": [
             "Query Capabilities",
             "Allocated Memory",
-            "50k Packets Ingestion Time",
+            "50k Elements Ingestion Time",
             "Frequency Mean Absolute Error (MAE)",
             "Frequency Average Relative Error (ARE)",
             "Peak Overestimation Noise",
             "Distinct Cardinality (Spread) Error",
             "Top Heavy Hitters Recovery",
-            "Telemetry Wire / Storage Size",
-            "Telemetry Compression Ratio",
+            "State Storage / Serialized Size",
+            "State Compression Ratio",
         ],
         "Standard Bloom Filter": [
             "Membership Only",
@@ -131,9 +132,9 @@ with tab_compare:
             "122.45 ms",
             "6.24",
             "4.9811",
-            "47.0 pkts",
+            "47.0 counts",
             "N/A",
-            "Requires O(U) full scan",
+            "Requires O(|U|) full scan",
             "16,384 Bytes",
             "0.0%",
         ],
@@ -155,19 +156,19 @@ with tab_compare:
             "290.62 ms",
             "6.24",
             "4.9811",
-            "47.0 pkts",
+            "47.0 counts",
             "0.43% Relative Error",
-            "Requires O(U) full scan",
+            "Requires O(|U|) full scan",
             "42,233 Bytes",
             "0.0%",
         ],
-        "Our Research Work (AdaLog)": [
+        "Our Developed Work (AdaLog)": [
             "ALL 4 UNIFIED",
             "25,024 Bytes",
             "64.38 ms",
             "3.13",
             "2.7553",
-            "20.0 pkts",
+            "20.0 counts",
             "2.10% (0 Extra Memory)",
             "100% Exact in O(1)",
             "5,407 Bytes",
@@ -182,7 +183,7 @@ with tab_compare:
             "-57.4% Peak Noise Cut",
             "Matches HLL with 0 extra RAM",
             "Zero Database Universe Scan",
-            "Saves 10.9 KB wire bandwidth",
+            "Saves 10.9 KB serialized space",
             "Sub-3 ms Lossless Compression",
         ],
     }
@@ -194,43 +195,43 @@ with tab_compare:
 # TAB 2: LIVE WORKLOAD BENCHMARK (DEMO & EXPERIMENT)
 # =============================================================================
 with tab_benchmark:
-    st.subheader("⚡ Live Benchmark on Real-World & Skewed Traffic")
-    st.caption("Generate synthetic or CAIDA-style packet streams and evaluate real-time error reductions.")
+    st.subheader("⚡ Live Benchmark on Real-World & Skewed Data Streams")
+    st.caption("Generate synthetic or real-world skewed query streams and evaluate real-time error reductions.")
 
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1:
         workload = st.selectbox(
-            "Select Traffic Workload:",
-            ["CAIDA Internet Backbone (5-Tuple)", "Zipfian Skewed Stream (alpha=1.25)", "Uniform Stream"],
+            "Select Data Stream Workload:",
+            ["Real-World Skewed Query Stream (Key-Value)", "Zipfian Skewed Stream (alpha=1.25)", "Uniform Stream"],
         )
     with b_col2:
-        stream_size = st.slider("Packet Stream Size (N):", 5000, 50000, 20000, step=5000)
+        stream_size = st.slider("Stream Size (N elements):", 5000, 50000, 20000, step=5000)
     with b_col3:
-        elephant_tau = st.slider("Elephant Threshold (tau):", 5, 50, 15)
+        elephant_tau = st.slider("Frequent Item Threshold (tau):", 5, 50, 15)
 
     if st.button("🚀 Run Live Benchmark", type="primary", use_container_width=True):
-        with st.spinner("Processing packet stream across algorithms..."):
-            if "CAIDA" in workload:
+        with st.spinner("Processing stream items across algorithms..."):
+            if "Real-World" in workload:
                 trace = generate_caida_like_trace(total_packets=stream_size, seed=42)
-                stream_packets = trace.packets
-                true_counts = trace.flow_frequencies
-                true_cardinality = trace.distinct_flows
+                stream_items = [f"key_{p.replace('.', '_')}" for p in trace.packets]
+                true_counts = collections.Counter(stream_items)
+                true_cardinality = len(true_counts)
             else:
                 dist_name = "zipfian" if "Zipfian" in workload else "uniform"
-                stream_packets = generate_stream(dist_name, stream_size=stream_size, seed=42)
-                true_counts = collections.Counter(stream_packets)
+                stream_items = generate_stream(dist_name, stream_size=stream_size, seed=42)
+                true_counts = collections.Counter(stream_items)
                 true_cardinality = len(true_counts)
 
             # Benchmark Standard CMS
             cms = CountMinSketch(epsilon=0.01, delta=0.01, width=1024, depth=4, seed=42)
-            cms.update_many(stream_packets)
+            cms.update_many(stream_items)
             cms_metrics = cms.compute_errors(true_counts)
 
             # Benchmark AdaLog-Sketch
             adalog = AdaLogSketch(
                 width=1024, depth=4, stash_capacity=64, elephant_threshold=elephant_tau, seed=42
             )
-            adalog.update_many(stream_packets)
+            adalog.update_many(stream_items)
             adalog_metrics = adalog.compute_metrics(true_counts, true_cardinality)
 
             # LightRanger Compression
@@ -239,7 +240,7 @@ with tab_benchmark:
             comp_ratio = (1.0 - (len(comp_bytes) / raw_matrix_bytes)) * 100.0
 
             # Display Live Metrics
-            st.success(f"Processed {stream_size:,} packets ({true_cardinality:,} unique flows) successfully!")
+            st.success(f"Processed {stream_size:,} stream elements ({true_cardinality:,} unique keys) successfully!")
             m1, m2, m3, m4 = st.columns(4)
             with m1:
                 mae_diff = cms_metrics["mae"] - adalog_metrics["mae"]
@@ -249,34 +250,33 @@ with tab_benchmark:
                 st.metric("Peak Overestimation", f"{adalog_metrics['max_overestimation']:.0f}", delta=f"{peak_diff:.0f} peak noise cut", delta_color="normal")
             with m3:
                 card_err = adalog_metrics["cardinality_relative_error"] * 100
-                st.metric("Estimated Flow Spread", f"{adalog.cardinality():,}", delta=f"RSE: {card_err:.2f}% (True: {true_cardinality:,})")
+                st.metric("Estimated Distinct Items", f"{adalog.cardinality():,}", delta=f"RSE: {card_err:.2f}% (True: {true_cardinality:,})")
             with m4:
-                st.metric("LightRanger Wire Compression", f"{comp_ratio:.1f}%", delta=f"{len(comp_bytes):,} B (from {raw_matrix_bytes:,} B)")
+                st.metric("LightRanger Compression", f"{comp_ratio:.1f}%", delta=f"{len(comp_bytes):,} B (from {raw_matrix_bytes:,} B)")
 
             st.divider()
 
             # Side-by-side Visualizations
             v_col1, v_col2 = st.columns([1, 1])
-
             with v_col1:
-                st.write("### 🐘 O(1) Extracted Heavy Hitters (Elephant Stash)")
-                heavy_flows = adalog.heavy_hitters()[:8]
-                if heavy_flows:
+                st.write("### 🐘 O(1) Extracted Heavy Hitters / Frequent Items (Stash)")
+                heavy_items = adalog.heavy_hitters()[:8]
+                if heavy_items:
                     df_hh = pd.DataFrame([
                         {
-                            "Flow Identifier": k,
+                            "Item Key": k,
                             "Estimated Frequency": v,
                             "Ground Truth": true_counts.get(k, 0),
                             "Exact Match?": "✓ Exact" if v == true_counts.get(k, 0) else "Overestimated",
                         }
-                        for k, v in heavy_flows
+                        for k, v in heavy_items
                     ])
                     st.dataframe(df_hh, use_container_width=True, hide_index=True)
                 else:
-                    st.info("No flows exceeded the elephant threshold.")
+                    st.info("No items exceeded the frequent item threshold.")
 
             with v_col2:
-                st.write("### 📊 Overestimation on Top Frequent Flows")
+                st.write("### 📊 Overestimation on Top Frequent Items")
                 top_items = [k for k, _ in sorted(true_counts.items(), key=lambda kv: kv[1], reverse=True)[:12]]
                 cms_err = [cms.query(k) - true_counts[k] for k in top_items]
                 adalog_err = [adalog.query(k) - true_counts[k] for k in top_items]
@@ -287,7 +287,7 @@ with tab_benchmark:
                 ax.bar(x_pos - bar_w/2, cms_err, width=bar_w, label="Standard CMS", color="#d9534f", alpha=0.85)
                 ax.bar(x_pos + bar_w/2, adalog_err, width=bar_w, label="AdaLog-Sketch (Ours)", color="#5cb85c", alpha=0.85)
                 ax.set_ylabel("Overestimation Error", fontsize=9)
-                ax.set_xlabel("Top Flows (Ranked)", fontsize=9)
+                ax.set_xlabel("Top Items (Ranked)", fontsize=9)
                 ax.set_title("Overestimation Error (Lower is Better)", fontsize=10, fontweight="bold")
                 ax.legend(fontsize=8)
                 ax.grid(True, linestyle="--", alpha=0.3)
@@ -299,21 +299,21 @@ with tab_benchmark:
 # TAB 3: INTERACTIVE QUERY PLAYGROUND (HANDS-ON TESTING)
 # =============================================================================
 with tab_playground:
-    st.subheader("🧪 Live Flow Query Playground")
-    st.caption("Insert live flow records and query the unified synopsis in real-time.")
+    st.subheader("🧪 Live Stream Query Playground")
+    st.caption("Insert live key-value elements and query the unified synopsis in real-time.")
 
     p_col1, p_col2 = st.columns(2)
     with p_col1:
         st.write("#### 1. Live Data Ingestion")
-        default_flows = (
-            "192.168.1.10->10.0.0.1: 50,\n"
-            "192.168.1.11->10.0.0.2: 8,\n"
-            "192.168.1.10->10.0.0.1: 25,\n"
-            "192.168.1.12->10.0.0.3: 2,\n"
-            "192.168.1.13->10.0.0.4: 1,\n"
-            "192.168.1.10->10.0.0.1: 30"
+        default_items = (
+            "user_1001: 50,\n"
+            "search_query_alpha: 8,\n"
+            "user_1001: 25,\n"
+            "item_camera_x: 2,\n"
+            "session_404: 1,\n"
+            "user_1001: 30"
         )
-        stream_text = st.text_area("Input Stream (flow: count, ...):", default_flows, height=130)
+        stream_text = st.text_area("Input Stream (item_key: count, ...):", default_items, height=130)
 
         # Parse and populate sketch
         demo_adalog = AdaLogSketch(width=512, depth=4, elephant_threshold=15)
@@ -321,11 +321,11 @@ with tab_playground:
         for entry in stream_text.split(","):
             if ":" in entry:
                 parts = entry.strip().split(":")
-                flow_k = parts[0].strip()
+                item_k = parts[0].strip()
                 try:
-                    flow_c = int(parts[1].strip())
-                    demo_adalog.update(flow_k, flow_c)
-                    demo_truth[flow_k] += flow_c
+                    item_c = int(parts[1].strip())
+                    demo_adalog.update(item_k, item_c)
+                    demo_truth[item_k] += item_c
                 except ValueError:
                     pass
 
@@ -334,13 +334,13 @@ with tab_playground:
         with s1:
             st.metric("Total Stream Volume", f"{demo_adalog.total_volume:,}")
         with s2:
-            st.metric("Estimated Flow Spread", f"{demo_adalog.cardinality():,}", delta=f"True: {len(demo_truth)}")
+            st.metric("Distinct Cardinality", f"{demo_adalog.cardinality():,}", delta=f"True: {len(demo_truth)}")
         with s3:
-            st.metric("Tracked Elephants", f"{len(demo_adalog.heavy_hitters())}")
+            st.metric("Tracked Frequent Items", f"{len(demo_adalog.heavy_hitters())}")
 
     with p_col2:
         st.write("#### 2. Point Query Inspector")
-        query_input = st.text_input("Enter Flow ID to Query:", "192.168.1.10->10.0.0.1")
+        query_input = st.text_input("Enter Item Key to Query:", "user_1001")
 
         if query_input:
             est_count = demo_adalog.query(query_input)
@@ -348,9 +348,9 @@ with tab_playground:
             in_stash = query_input in demo_adalog.elephant_stash
 
             if true_count > 0:
-                st.success(f"✓ Flow **{query_input}** is **PRESENT**")
+                st.success(f"✓ Item **{query_input}** is **PRESENT**")
             else:
-                st.warning(f"Flow **{query_input}** is not in input stream")
+                st.warning(f"Item **{query_input}** is not in input stream")
 
             r1, r2, r3 = st.columns(3)
             with r1:
@@ -358,15 +358,15 @@ with tab_playground:
             with r2:
                 st.metric("Exact Ground Truth", f"{true_count}")
             with r3:
-                st.metric("Tracked in Stash?", "YES (Fast Path)" if in_stash else "No (Base Table)")
+                st.metric("Tracked in Stash?", "YES (O(1) Fast Path)" if in_stash else "No (Base Table)")
 
         st.divider()
-        if st.button("⚡ Test LightRanger Wire Compression", use_container_width=True):
+        if st.button("⚡ Test LightRanger State Compression", use_container_width=True):
             compressed_data = demo_adalog.compress_lightranger()
             raw_size = demo_adalog.table.nbytes
             comp_size = len(compressed_data)
             savings = (1.0 - comp_size / raw_size) * 100.0
             st.info(
                 f"**LightRanger Compression Result:** Compressed **{raw_size:,} bytes** down to "
-                f"**{comp_size:,} bytes** (**{savings:.1f}% bandwidth reduction**) with lossless matrix reconstruction!"
+                f"**{comp_size:,} bytes** (**{savings:.1f}% storage reduction**) with lossless matrix reconstruction!"
             )
