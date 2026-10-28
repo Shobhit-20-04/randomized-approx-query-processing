@@ -280,44 +280,41 @@ with tab_planner:
 
     st.divider()
 
-    # Analytical Error Predictions vs Memory Allocation
-    pr_col1, pr_col2 = st.columns([1, 1])
-    with pr_col1:
-        st.write("#### 📈 Planner-Predicted Analytical Error Targets")
-        pred_df = pd.DataFrame({
-            "Query Metric": ["Predicted Frequency MAE", "Predicted Membership FPR", "Predicted Cardinality RSE"],
-            "Theoretical Prediction": [
-                f"{opt_config.predicted_mae:.2f} counts",
-                f"{opt_config.predicted_fpr * 100:.2f}%",
-                f"{opt_config.predicted_rse * 100:.2f}%",
-            ],
-            "Underlying Analytical Model": [
-                "CMS-CU damped noise floor: (N - V_stash) / (w * (1 + 0.5*d^2))",
-                "Product of independent row occupancies: (1 - e^(-n/w))^d",
-                "Flajolet asymptotic standard error: 1.04 / sqrt(m)",
-            ],
-        })
-        st.dataframe(pred_df, use_container_width=True, hide_index=True)
-        st.info("💡 **Acceptance Gate Passed:** AdaLog-Planner's predicted MAE matches empirical measured error within **2.74%** across memory sweeps.")
+    # Single-column aligned analytical error predictions and memory breakdown
+    st.write("#### 📈 Planner-Predicted Analytical Error Targets")
+    pred_df = pd.DataFrame({
+        "Query Metric": ["Predicted Frequency MAE", "Predicted Membership FPR", "Predicted Cardinality RSE"],
+        "Theoretical Prediction": [
+            f"{opt_config.predicted_mae:.2f} counts",
+            f"{opt_config.predicted_fpr * 100:.2f}%",
+            f"{opt_config.predicted_rse * 100:.2f}%",
+        ],
+        "Underlying Analytical Model": [
+            "CMS-CU damped noise floor: (N - V_stash) / (w * (1 + 0.5*d^2))",
+            "Product of independent row occupancies: (1 - e^(-n/w))^d",
+            "Flajolet asymptotic standard error: 1.04 / sqrt(m)",
+        ],
+    })
+    st.dataframe(pred_df, use_container_width=True, hide_index=True)
+    st.info("💡 **Acceptance Gate Passed:** AdaLog-Planner's predicted MAE matches empirical measured error within **2.74%** across memory sweeps.")
 
-    with pr_col2:
-        st.write("#### 🧩 Internal Memory Partition Breakdown")
-        matrix_bytes = int((opt_config.d * opt_config.w * opt_config.counter_bits) / 8)
-        hll_bytes = int((opt_config.m * 6 + 7) / 8)
-        stash_bytes = opt_config.K * 16
-        actual_total = matrix_bytes + hll_bytes + stash_bytes
+    st.write("#### 🧩 Internal Memory Partition Breakdown")
+    matrix_bytes = int((opt_config.d * opt_config.w * opt_config.counter_bits) / 8)
+    hll_bytes = int((opt_config.m * 6 + 7) / 8)
+    stash_bytes = opt_config.K * 16
+    actual_total = matrix_bytes + hll_bytes + stash_bytes
 
-        mem_breakdown = pd.DataFrame({
-            "Component": ["Base Counter Matrix (d x w)", "Packed 6-bit HLL Registers", "Associative Elephant Stash"],
-            "Bytes Allocated": [matrix_bytes, hll_bytes, stash_bytes],
-            "Percentage": [
-                f"{matrix_bytes / actual_total * 100:.1f}%",
-                f"{hll_bytes / actual_total * 100:.1f}%",
-                f"{stash_bytes / actual_total * 100:.1f}%",
-            ],
-        })
-        st.dataframe(mem_breakdown, use_container_width=True, hide_index=True)
-        st.caption(f"Total Allocated: **{actual_total:,} Bytes** (Remaining padding: {target_budget - actual_total} Bytes)")
+    mem_breakdown = pd.DataFrame({
+        "Component": ["Base Counter Matrix (d x w)", "Packed 6-bit HLL Registers", "Associative Elephant Stash"],
+        "Bytes Allocated": [f"{matrix_bytes:,} Bytes", f"{hll_bytes:,} Bytes", f"{stash_bytes:,} Bytes"],
+        "Percentage of Total": [
+            f"{matrix_bytes / actual_total * 100:.1f}%",
+            f"{hll_bytes / actual_total * 100:.1f}%",
+            f"{stash_bytes / actual_total * 100:.1f}%",
+        ],
+    })
+    st.dataframe(mem_breakdown, use_container_width=True, hide_index=True)
+    st.caption(f"Total Allocated: **{actual_total:,} Bytes** (Remaining padding: {target_budget - actual_total} Bytes)")
 
 
 # =============================================================================
@@ -447,44 +444,43 @@ with tab_benchmark:
 
             st.divider()
 
-            # Side-by-side Visualizations
-            v_col1, v_col2 = st.columns([1, 1])
-            with v_col1:
-                st.write("#### 🐘 O(1) Extracted Heavy Hitters (Elephant Stash)")
-                heavy_items = adalog.top_k(10)
-                if heavy_items:
-                    df_hh = pd.DataFrame([
-                        {
-                            "Item Key": k,
-                            "Estimated Frequency": v,
-                            "Ground Truth": ground_truth.get(k, 0),
-                            "Estimation Error": v - ground_truth.get(k, 0),
-                            "Exact Status": "✓ 100% Exact" if v == ground_truth.get(k, 0) else "Overestimated",
-                        }
-                        for k, v in heavy_items
-                    ])
-                    st.dataframe(df_hh, use_container_width=True, hide_index=True)
-                else:
-                    st.info("No items exceeded the promotion threshold.")
+            # Single-column aligned Heavy Hitters Table and Error Plot
+            st.write("#### 🐘 O(1) Extracted Heavy Hitters (Elephant Stash)")
+            heavy_items = adalog.top_k(10)
+            if heavy_items:
+                df_hh = pd.DataFrame([
+                    {
+                        "Item Key": k,
+                        "Estimated Frequency": v,
+                        "Ground Truth": ground_truth.get(k, 0),
+                        "Estimation Error": v - ground_truth.get(k, 0),
+                        "Exact Status": "✓ 100% Exact" if v == ground_truth.get(k, 0) else "Overestimated",
+                    }
+                    for k, v in heavy_items
+                ])
+                st.dataframe(df_hh, use_container_width=True, hide_index=True)
+            else:
+                st.info("No items exceeded the promotion threshold.")
 
-            with v_col2:
-                st.write("#### 📊 Overestimation on Top Frequent Items")
-                top_items = [k for k, _ in sorted(ground_truth.items(), key=lambda kv: kv[1], reverse=True)[:12]]
-                disjoint_item_err = [disjoint.estimate(k) - ground_truth[k] for k in top_items]
-                adalog_item_err = [adalog.estimate(k) - ground_truth[k] for k in top_items]
+            st.write("#### 📊 Frequency Collision Error on Top Frequent Items")
+            top_items = [k for k, _ in sorted(ground_truth.items(), key=lambda kv: kv[1], reverse=True)[:15]]
+            disjoint_item_err = [disjoint.estimate(k) - ground_truth[k] for k in top_items]
+            adalog_item_err = [adalog.estimate(k) - ground_truth[k] for k in top_items]
 
-                fig, ax = plt.subplots(figsize=(6, 3.5))
-                x_pos = np.arange(len(top_items))
-                bar_w = 0.35
-                ax.bar(x_pos - bar_w/2, disjoint_item_err, width=bar_w, label="Disjoint Stack", color="#d9534f", alpha=0.85)
-                ax.bar(x_pos + bar_w/2, adalog_item_err, width=bar_w, label="AdaLog-Sketch (Ours)", color="#5cb85c", alpha=0.85)
-                ax.set_ylabel("Overestimation Error (Counts)", fontsize=9)
-                ax.set_xlabel("Top Items (Ranked by Frequency)", fontsize=9)
-                ax.set_title("Frequency Collision Error on Top Items", fontsize=10, fontweight="bold")
-                ax.legend(fontsize=8)
-                ax.grid(True, linestyle="--", alpha=0.3)
-                plt.tight_layout()
-                st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(10, 3.8))
+            x_pos = np.arange(len(top_items))
+            bar_w = 0.35
+            ax.bar(x_pos - bar_w/2, disjoint_item_err, width=bar_w, label="Disjoint Stack", color="#d9534f", alpha=0.85)
+            ax.bar(x_pos + bar_w/2, adalog_item_err, width=bar_w, label="AdaLog-Sketch (Ours)", color="#5cb85c", alpha=0.85)
+            ax.set_ylabel("Overestimation Error (Counts)", fontsize=10)
+            ax.set_xlabel("Top Items (Ranked by Ground Truth Frequency)", fontsize=10)
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(top_items, rotation=25, ha="right", fontsize=9)
+            ax.set_title("Frequency Collision Error Comparison (Lower is Better)", fontsize=11, fontweight="bold")
+            ax.legend(fontsize=9)
+            ax.grid(True, linestyle="--", alpha=0.3)
+            plt.tight_layout()
+            st.pyplot(fig)
 
 
 # =============================================================================
