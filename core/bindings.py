@@ -11,14 +11,20 @@ import sys
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 DLL_PATH = os.path.join(CORE_DIR, "adalog_core.dll")
 
-if not os.path.exists(DLL_PATH):
-    raise FileNotFoundError(f"Compiled library not found at {DLL_PATH}. Compile with: g++ -O3 -shared -o adalog_core.dll adalog_core.cpp")
 
-lib = ctypes.CDLL(DLL_PATH)
+def is_dll_available() -> bool:
+    return os.path.exists(DLL_PATH)
 
-# Function prototypes
-lib.adalog_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
-lib.adalog_create.restype = ctypes.c_void_p
+
+try:
+    lib = ctypes.CDLL(DLL_PATH) if os.path.exists(DLL_PATH) else None
+except Exception:
+    lib = None
+
+if lib:
+    # Function prototypes
+    lib.adalog_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
+    lib.adalog_create.restype = ctypes.c_void_p
 
 lib.adalog_destroy.argtypes = [ctypes.c_void_p]
 lib.adalog_destroy.restype = None

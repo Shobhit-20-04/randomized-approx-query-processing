@@ -53,6 +53,22 @@ def generate_zipf_stream(
     return stream, dict(ground_truth)
 
 
+def generate_uniform_stream(
+    n_stream: int = 100_000,
+    n_unique: int = 10_000,
+    seed: int = 42,
+) -> Tuple[List[str], Dict[str, int]]:
+    """Generate a synthetic stream following a uniform distribution over n_unique keys.
+    
+    Returns:
+        (stream_keys, ground_truth_counts)
+    """
+    rng = random.Random(seed)
+    stream = [f"key_{rng.randint(0, n_unique - 1)}" for _ in range(n_stream)]
+    ground_truth = Counter(stream)
+    return stream, dict(ground_truth)
+
+
 def generate_drifting_stream(
     phase_lengths: List[int] = [100_000, 100_000, 100_000],
     alphas: List[float] = [1.10, 1.50, 1.20],
