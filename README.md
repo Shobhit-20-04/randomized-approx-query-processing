@@ -8,6 +8,7 @@
 A reproducible research codebase and benchmark case study evaluating classical probabilistic data structures (**Bloom Filter**, **Count-Min Sketch**, **HyperLogLog**, **Elastic Sketch**, **Augmented Sketch**) alongside **AdaLog-Sketch**—a unified randomized algorithm that executes Approximate Membership Queries (AMQ), Point Frequency Estimation, Distinct Cardinality Counting, and Heavy Hitters from a **single shared memory block driven by a single 128-bit hash computation per stream item**.
 
 **Authors:** Shobhit Agrawal & Mayuri Rajendra Pawar (Vellore Institute of Technology, Vellore)  
+**Faculty Guide:** Dr. Parveen Sultana H (Associate Dean in-charge, School of Computer Science and Engineering - SCOPE, VIT Vellore)  
 **Repository:** [https://github.com/Shobhit-20-04/randomized-approx-query-processing](https://github.com/Shobhit-20-04/randomized-approx-query-processing)
 
 ---

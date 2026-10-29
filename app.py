@@ -1,7 +1,7 @@
 """
 AdaLog-Sketch: Unified Approximate Query Processing & Streaming Data Structures
 Research Demonstration & Performance Evaluation Dashboard
-Authors: Shobhit Agrawal & Mayuri Rajendra Pawar (School of Computer Science and Engineering, VIT)
+Authors: Shobhit Agrawal & Mayuri Rajendra Pawar | Faculty Guide: Dr. Parveen Sultana H (SCOPE, VIT)
 """
 
 import collections
@@ -46,7 +46,8 @@ st.set_page_config(
 st.title("⚡ AdaLog-Sketch: Unified Randomized Approximate Query Processing Engine")
 st.markdown(
     "**Authors:** Shobhit Agrawal & Mayuri Rajendra Pawar &nbsp;|&nbsp; "
-    "*School of Computer Science and Engineering, Vellore Institute of Technology (VIT)*"
+    "**Faculty Guide:** Dr. Parveen Sultana H (Associate Dean in-charge)  \n"
+    "*School of Computer Science and Engineering (SCOPE), Vellore Institute of Technology (VIT)*"
 )
 st.caption(
     "A reproducible comparative case study of **Bloom Filter**, **Count-Min Sketch (CMS)**, and **HyperLogLog (HLL)** "
