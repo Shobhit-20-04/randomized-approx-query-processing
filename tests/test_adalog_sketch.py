@@ -149,3 +149,48 @@ def test_adalog_sketch_memory_usage():
     sketch = AdaLogSketch(width=256, depth=4, stash_capacity=64)
     mem = sketch.memory_usage_bytes()
     assert mem > 256 * 4 * 4  # Greater than raw matrix size
+
+
+def test_conservative_update_batch_increment_counterexample():
+    """
+    Reviewer Issue 1.1: Verify Conservative Update with increment c > 1
+    does NOT underestimate when cell values differ across rows.
+    Counter-example: cells (5, 6, 6) updated with c = 3.
+    Under naive rule, cells become (8, 6, 6), so min is 6 < 8 (underestimate).
+    Under corrected rule, cells become (8, 8, 8), so min is 8 (no underestimate).
+    """
+    from adalog.sketch import AdaLogSketch as ModularAdaLog
+    from baselines.count_min_sketch import CountMinSketch as BaselineCMS
+
+    # 1. Test Modular AdaLogSketch
+    sketch = ModularAdaLog(w=64, d=3, counter_bits=8, use_stash=False, use_conservative_update=True, seed=42)
+    # Manually configure cells for item "test_key" to (5, 6, 6)
+    from adalog.hash_utils import hash128, get_matrix_indices
+    h_low, _ = hash128("test_key", seed=42)
+    indices = get_matrix_indices(h_low, 3, 64)
+    sketch.table[0, indices[0]] = 5
+    sketch.table[1, indices[1]] = 6
+    sketch.table[2, indices[2]] = 6
+
+    # Update with increment c = 3
+    sketch.update("test_key", count=3)
+
+    # All cells must be at least 5 + 3 = 8
+    est = sketch.estimate("test_key")
+    assert est >= 8, f"CU underestimated with c>1: est={est}, expected at least 8"
+    for j in range(3):
+        assert sketch.table[j, indices[j]] >= 8, f"Row {j} was not updated properly: {sketch.table[j, indices[j]]}"
+
+    # 2. Test Baseline CountMinSketch with Conservative Update
+    cms = BaselineCMS(width=64, depth=3, counter_bits=16, conservative_update=True, seed=42)
+    cms_indices = cms._get_indices("test_key")
+    cms.table[0, cms_indices[0]] = 5
+    cms.table[1, cms_indices[1]] = 6
+    cms.table[2, cms_indices[2]] = 6
+
+    cms.update("test_key", count=3)
+    cms_est = cms.query("test_key")
+    assert cms_est >= 8, f"Baseline CMS CU underestimated with c>1: est={cms_est}, expected at least 8"
+    for j in range(3):
+        assert cms.table[j, cms_indices[j]] >= 8, f"CMS Row {j} was not updated properly: {cms.table[j, cms_indices[j]]}"
+

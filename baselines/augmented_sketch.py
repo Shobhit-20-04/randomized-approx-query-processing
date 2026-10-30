@@ -25,8 +25,8 @@ class AugmentedSketch:
             filter_capacity = max(16, filter_bytes // 16)
             rem_bytes = max(256, total_memory_bytes - filter_capacity * 16)
             sketch_depth = 4
-            counter_bits = 16
-            sketch_width = max(64, rem_bytes // (sketch_depth * 2))
+            bytes_per_cell = 1 if counter_bits == 8 else (2 if counter_bits == 16 else 4)
+            sketch_width = max(64, rem_bytes // (sketch_depth * bytes_per_cell))
 
         self.k_capacity = filter_capacity
         self.seed = seed

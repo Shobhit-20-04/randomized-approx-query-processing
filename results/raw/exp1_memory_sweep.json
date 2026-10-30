@@ -3,280 +3,1085 @@
     "model": "AdaLog-Sketch",
     "budget_kb": 8,
     "bytes": 8192,
-    "mae": 6.731538177794172,
-    "fpr": 0.9988,
-    "rse": 0.03599369505086551,
-    "top_k_f1": 0.48484848484848486,
-    "underestimates": 57
+    "mae": 15.874549130234367,
+    "mae_std": 0.1301693436776336,
+    "mae_ci95": [
+      15.781431591286603,
+      15.967666669182131
+    ],
+    "are": 12.781622168010998,
+    "fpr": 1.0,
+    "fpr_std": 0.0,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 8,
     "bytes": 8192,
-    "mae": 25.8506824050166,
-    "fpr": 0.6402,
-    "rse": 0.009779336087001508,
+    "mae": 30.238597021473527,
+    "mae_std": 1.2380000311695252,
+    "mae_ci95": [
+      29.352985149562627,
+      31.124208893384427
+    ],
+    "are": 23.6334484526407,
+    "fpr": 0.7611800000000001,
+    "fpr_std": 0.003346905701954846,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 8,
+    "bytes": 8192,
+    "mae": 16.13407037214945,
+    "mae_std": 0.1284944735004084,
+    "mae_ci95": [
+      16.042150963149595,
+      16.225989781149302
+    ],
+    "are": 12.98467297157087,
+    "fpr": 0.88407,
+    "fpr_std": 0.002030900183553004,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 8,
     "bytes": 8192,
-    "mae": 19.706307635558833,
+    "mae": 23.371438626669153,
+    "mae_std": 0.17843769145391752,
+    "mae_ci95": [
+      23.243791991798975,
+      23.49908526153933
+    ],
+    "are": 18.57190008713922,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 0.6077348066298343,
-    "underestimates": 0
+    "top_k_f1": 0.6044198895027624,
+    "top_k_precision": 0.6753086419753087,
+    "top_k_recall": 0.547,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 8,
     "bytes": 8192,
-    "mae": 19.49870896348211,
+    "mae": 22.98081213487322,
+    "mae_std": 0.12934930612587747,
+    "mae_ci95": [
+      22.888281215451272,
+      23.073343054295165
+    ],
+    "are": 18.295897968118574,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_f1": 0.999,
+    "top_k_precision": 0.999,
+    "top_k_recall": 0.999,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AdaLog-Sketch",
     "budget_kb": 16,
     "bytes": 16384,
-    "mae": 1.751161932866101,
-    "fpr": 0.913,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
+    "mae": 3.0978098542371364,
+    "mae_std": 0.026712914847174567,
+    "mae_ci95": [
+      3.0787005861221317,
+      3.116919122352141
+    ],
+    "are": 2.648790056852594,
+    "fpr": 0.98993,
+    "fpr_std": 0.002459923214700467,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 16,
     "bytes": 16384,
-    "mae": 8.176982663223903,
-    "fpr": 0.3998,
-    "rse": 0.009779336087001508,
+    "mae": 10.15095183968115,
+    "mae_std": 0.3116374663730346,
+    "mae_ci95": [
+      9.92801982594649,
+      10.37388385341581
+    ],
+    "are": 8.115711764515513,
+    "fpr": 0.51082,
+    "fpr_std": 0.0034707668060850894,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 16,
+    "bytes": 16384,
+    "mae": 3.9439605230026906,
+    "mae_std": 0.03063992552198182,
+    "mae_ci95": [
+      3.9220420406815726,
+      3.9658790053238087
+    ],
+    "are": 3.339682077540722,
+    "fpr": 0.6732499999999999,
+    "fpr_std": 0.00615273200384279,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 16,
     "bytes": 16384,
-    "mae": 6.66580597565474,
+    "mae": 8.43505095824877,
+    "mae_std": 0.05619188983624709,
+    "mae_ci95": [
+      8.394853701793874,
+      8.475248214703665
+    ],
+    "are": 6.92929596423711,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 0.75,
-    "underestimates": 0
+    "top_k_f1": 0.7,
+    "top_k_precision": 0.7,
+    "top_k_recall": 0.7,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 16,
     "bytes": 16384,
-    "mae": 6.53419402434526,
+    "mae": 8.198042917878741,
+    "mae_std": 0.053301670228623525,
+    "mae_ci95": [
+      8.159913199979982,
+      8.2361726357775
+    ],
+    "are": 6.758129678259573,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_f1": 0.999,
+    "top_k_precision": 0.999,
+    "top_k_recall": 0.999,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AdaLog-Sketch",
     "budget_kb": 32,
     "bytes": 32768,
-    "mae": 0.3980818886019919,
-    "fpr": 0.4716,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
+    "mae": 0.6098726278135246,
+    "mae_std": 0.0039593238468255505,
+    "mae_ci95": [
+      0.6070402981566536,
+      0.6127049574703956
+    ],
+    "are": 0.5484937649803077,
+    "fpr": 0.73252,
+    "fpr_std": 0.0050139361339725545,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 32,
     "bytes": 32768,
-    "mae": 2.5097012172630024,
-    "fpr": 0.1481,
-    "rse": 0.009779336087001508,
+    "mae": 3.313636534026684,
+    "mae_std": 0.3141557439088209,
+    "mae_ci95": [
+      3.0889030530656045,
+      3.5383700149877635
+    ],
+    "are": 2.7012623016312247,
+    "fpr": 0.25903,
+    "fpr_std": 0.003382980277145521,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 32,
+    "bytes": 32768,
+    "mae": 0.9174248989832536,
+    "mae_std": 0.012175064392767105,
+    "mae_ci95": [
+      0.908715382589035,
+      0.9261344153774723
+    ],
+    "are": 0.8182900595107485,
+    "fpr": 0.32669000000000004,
+    "fpr_std": 0.006759922747750561,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 32,
     "bytes": 32768,
-    "mae": 1.9035780154924382,
+    "mae": 2.692864850059279,
+    "mae_std": 0.023805519165983693,
+    "mae_ci95": [
+      2.675835407523255,
+      2.7098942925953033
+    ],
+    "are": 2.311594167927942,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 0.81,
-    "underestimates": 0
+    "top_k_f1": 0.8309999999999998,
+    "top_k_precision": 0.8309999999999998,
+    "top_k_recall": 0.8309999999999998,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 32,
     "bytes": 32768,
-    "mae": 1.86875691626706,
+    "mae": 2.611247862624997,
+    "mae_std": 0.024443804136768593,
+    "mae_ci95": [
+      2.593761818527133,
+      2.628733906722861
+    ],
+    "are": 2.254090637252013,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
     "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AdaLog-Sketch",
     "budget_kb": 64,
     "bytes": 65536,
-    "mae": 0.13485798598303209,
-    "fpr": 0.1128,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
+    "mae": 0.09063682386735375,
+    "mae_std": 0.0030027247760134363,
+    "mae_ci95": [
+      0.08848880396205025,
+      0.09278484377265725
+    ],
+    "are": 0.08324523860021277,
+    "fpr": 0.24115000000000003,
+    "fpr_std": 0.005023555624367177,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 64,
     "bytes": 65536,
-    "mae": 0.7818517152342309,
-    "fpr": 0.0239,
-    "rse": 0.009779336087001508,
+    "mae": 0.9462156619775408,
+    "mae_std": 0.0160943539000938,
+    "mae_ci95": [
+      0.9347024547676883,
+      0.9577288691873933
+    ],
+    "are": 0.6966183575352785,
+    "fpr": 0.06581,
+    "fpr_std": 0.0030182592481244686,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 64,
+    "bytes": 65536,
+    "mae": 0.15884560682500734,
+    "mae_std": 0.0030203228848848665,
+    "mae_ci95": [
+      0.15668499799099034,
+      0.16100621565902434
+    ],
+    "are": 0.1451703558479986,
+    "fpr": 0.10751,
+    "fpr_std": 0.004015926626155744,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 64,
     "bytes": 65536,
-    "mae": 0.3981556621172999,
+    "mae": 0.6921251624452165,
+    "mae_std": 0.010007516610094918,
+    "mae_ci95": [
+      0.6849662163263921,
+      0.6992841085640409
+    ],
+    "are": 0.6208905988113254,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
     "top_k_f1": 0.9,
-    "underestimates": 0
+    "top_k_precision": 0.9,
+    "top_k_recall": 0.9,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 64,
     "bytes": 65536,
-    "mae": 0.40885282183696053,
+    "mae": 0.6678636707397116,
+    "mae_std": 0.005872086988544328,
+    "mae_ci95": [
+      0.6636630327598921,
+      0.6720643087195312
+    ],
+    "are": 0.6026549532862415,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
     "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AdaLog-Sketch",
     "budget_kb": 128,
     "bytes": 131072,
-    "mae": 0.09944669863518997,
-    "fpr": 0.0137,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
+    "mae": 0.010271953943688036,
+    "mae_std": 0.0010855195868285051,
+    "mae_ci95": [
+      0.009495420010664656,
+      0.011048487876711416
+    ],
+    "are": 0.009484037084378043,
+    "fpr": 0.03864,
+    "fpr_std": 0.0023716848207316447,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 128,
     "bytes": 131072,
-    "mae": 0.38782736997417927,
-    "fpr": 0.0006,
-    "rse": 0.009779336087001508,
+    "mae": 0.3118577988231465,
+    "mae_std": 0.013506469501741605,
+    "mae_ci95": [
+      0.3021958525895548,
+      0.32151974505673825
+    ],
+    "are": 0.13195176898575472,
+    "fpr": 0.0045000000000000005,
+    "fpr_std": 0.0005228129047119373,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 128,
+    "bytes": 131072,
+    "mae": 0.020253822810452148,
+    "mae_std": 0.0008163271124975329,
+    "mae_ci95": [
+      0.019669857572981515,
+      0.02083778804792278
+    ],
+    "are": 0.01870339307570465,
+    "fpr": 0.00963,
+    "fpr_std": 0.0008420213774008355,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 128,
     "bytes": 131072,
-    "mae": 0.053707119144227225,
+    "mae": 0.11322303273280529,
+    "mae_std": 0.003089278792915522,
+    "mae_ci95": [
+      0.11101309581376985,
+      0.11543296965184073
+    ],
+    "are": 0.10363224609296398,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 0.94,
-    "underestimates": 0
+    "top_k_f1": 0.9480000000000001,
+    "top_k_precision": 0.9480000000000001,
+    "top_k_recall": 0.9480000000000001,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 128,
     "bytes": 131072,
-    "mae": 0.07583917373662855,
+    "mae": 0.11339418790351659,
+    "mae_std": 0.002334795823772678,
+    "mae_ci95": [
+      0.11172397558690807,
+      0.11506440022012511
+    ],
+    "are": 0.1045603167495075,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
     "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AdaLog-Sketch",
     "budget_kb": 256,
     "bytes": 262144,
-    "mae": 0.09620066396163778,
-    "fpr": 0.0011,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
+    "mae": 0.0009718015869670407,
+    "mae_std": 0.00023464453265591246,
+    "mae_ci95": [
+      0.0008039470000792272,
+      0.0011396561738548543
+    ],
+    "are": 0.0009027111725350827,
+    "fpr": 0.00394,
+    "fpr_std": 0.00027968235951204054,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "Disjoint-Stack",
     "budget_kb": 256,
     "bytes": 262144,
-    "mae": 0.32467724087052746,
+    "mae": 0.18741158078804615,
+    "mae_std": 0.013030384558982767,
+    "mae_ci95": [
+      0.178090205206094,
+      0.1967329563699983
+    ],
+    "are": 0.0176921742872009,
+    "fpr": 2e-05,
+    "fpr_std": 4.21637021355784e-05,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 0.0,
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "model": "Disjoint-Stash",
+    "budget_kb": 256,
+    "bytes": 262144,
+    "mae": 0.0020147570833421065,
+    "mae_std": 0.0004360015937127448,
+    "mae_ci95": [
+      0.0017028603322577721,
+      0.002326653834426441
+    ],
+    "are": 0.0018681635237774601,
+    "fpr": 0.00012000000000000002,
+    "fpr_std": 9.189365834726814e-05,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "model": "ElasticSketch",
+    "budget_kb": 256,
+    "bytes": 262144,
+    "mae": 0.0116104020464224,
+    "mae_std": 0.0007627651553621079,
+    "mae_ci95": [
+      0.011064752724886846,
+      0.012156051367957953
+    ],
+    "are": 0.010833121607961866,
+    "fpr": null,
+    "fpr_std": null,
+    "rse": null,
+    "top_k_f1": 0.976,
+    "top_k_precision": 0.976,
+    "top_k_recall": 0.976,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "model": "AugmentedSketch",
+    "budget_kb": 256,
+    "bytes": 262144,
+    "mae": 0.012824419492846077,
+    "mae_std": 0.0009865984282741004,
+    "mae_ci95": [
+      0.012118649493742957,
+      0.013530189491949196
+    ],
+    "are": 0.012037044673820312,
+    "fpr": null,
+    "fpr_std": null,
+    "rse": null,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "model": "AdaLog-Sketch",
+    "budget_kb": 512,
+    "bytes": 524288,
+    "mae": 0.00010201199692076452,
+    "mae_std": 5.910146931826763e-05,
+    "mae_ci95": [
+      5.973335268988379e-05,
+      0.00014429064115164527
+    ],
+    "are": 9.661358501499431e-05,
+    "fpr": 0.00023999999999999998,
+    "fpr_std": 0.0001646545204697129,
+    "rse": 0.042425249460931805,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "model": "Disjoint-Stack",
+    "budget_kb": 512,
+    "bytes": 524288,
+    "mae": 0.17034607972668936,
+    "mae_std": 0.013279794194666534,
+    "mae_ci95": [
+      0.16084628723943079,
+      0.17984587221394793
+    ],
+    "are": 0.0019012970425588687,
     "fpr": 0.0,
-    "rse": 0.009779336087001508,
+    "fpr_std": 0.0,
+    "rse": 0.03756293441543262,
     "top_k_f1": 0.0,
-    "underestimates": 0
+    "top_k_precision": 0.0,
+    "top_k_recall": 0.0,
+    "underestimates": 1,
+    "underestimates_runs": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ]
   },
   {
-    "model": "ElasticSketch",
-    "budget_kb": 256,
-    "bytes": 262144,
-    "mae": 0.00582810770933235,
-    "fpr": null,
-    "rse": null,
-    "top_k_f1": 0.96,
-    "underestimates": 0
-  },
-  {
-    "model": "AugmentedSketch",
-    "budget_kb": 256,
-    "bytes": 262144,
-    "mae": 0.02471412762818148,
-    "fpr": null,
-    "rse": null,
-    "top_k_f1": 1.0,
-    "underestimates": 0
-  },
-  {
-    "model": "AdaLog-Sketch",
+    "model": "Disjoint-Stash",
     "budget_kb": 512,
     "bytes": 524288,
-    "mae": 0.09553670232386573,
-    "fpr": 0.0002,
-    "rse": 0.03959293385517083,
-    "top_k_f1": 0.7804878048780487,
-    "underestimates": 25
-  },
-  {
-    "model": "Disjoint-Stack",
-    "budget_kb": 512,
-    "bytes": 524288,
-    "mae": 0.3184064920693471,
+    "mae": 0.00010746160399577238,
+    "mae_std": 7.16696752734914e-05,
+    "mae_ci95": [
+      5.6192206838938535e-05,
+      0.00015873100115260623
+    ],
+    "are": 9.513989334809271e-05,
     "fpr": 0.0,
-    "rse": 0.009779336087001508,
-    "top_k_f1": 0.0,
-    "underestimates": 0
+    "fpr_std": 0.0,
+    "rse": 0.03756293441543262,
+    "top_k_f1": 1.0,
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "ElasticSketch",
     "budget_kb": 512,
     "bytes": 524288,
-    "mae": 0.0011803762449280708,
+    "mae": 0.0006549781816438423,
+    "mae_std": 0.0004548925887027373,
+    "mae_ci95": [
+      0.0003295676268324256,
+      0.000980388736455259
+    ],
+    "are": 0.0005608165937096754,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
-    "top_k_f1": 0.97,
-    "underestimates": 0
+    "top_k_f1": 0.9890000000000001,
+    "top_k_precision": 0.9890000000000001,
+    "top_k_recall": 0.9890000000000001,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   },
   {
     "model": "AugmentedSketch",
     "budget_kb": 512,
     "bytes": 524288,
-    "mae": 0.00044264109184802655,
+    "mae": 0.0004940181423630722,
+    "mae_std": 0.000141845495175437,
+    "mae_ci95": [
+      0.0003925479878059876,
+      0.0005954882969201569
+    ],
+    "are": 0.0004762627350756106,
     "fpr": null,
+    "fpr_std": null,
     "rse": null,
     "top_k_f1": 1.0,
-    "underestimates": 0
+    "top_k_precision": 1.0,
+    "top_k_recall": 1.0,
+    "underestimates": 0,
+    "underestimates_runs": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
   }
 ]

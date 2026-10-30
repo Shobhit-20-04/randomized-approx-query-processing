@@ -132,11 +132,12 @@ class AdaLogSketch:
         # 4. Update Counter Matrix (Conservative Update or Standard)
         if self.use_conservative_update:
             v_min = min(int(self.table[j, indices[j]]) for j in range(self.depth))
-            v_new = min(self.max_val, v_min + count)
+            v_target = min(self.max_val, v_min + count)
             for j in range(self.depth):
-                if int(self.table[j, indices[j]]) == v_min:
-                    self.table[j, indices[j]] = v_new
-            est_after = v_new
+                cur_val = int(self.table[j, indices[j]])
+                if cur_val < v_target:
+                    self.table[j, indices[j]] = v_target
+            est_after = v_target
         else:
             for j in range(self.depth):
                 cur = int(self.table[j, indices[j]])

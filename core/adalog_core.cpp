@@ -159,14 +159,15 @@ public:
             if (v < v_min) v_min = v;
         }
 
-        uint32_t v_new = (v_min + count > (uint32_t)max_val) ? max_val : (v_min + count);
+        uint32_t v_target = (v_min + count > (uint32_t)max_val) ? max_val : (v_min + count);
         for (int j = 0; j < depth; j++) {
-            if (get_cell(j, indices[j]) == v_min) {
-                set_cell(j, indices[j], v_new);
+            uint32_t cur = get_cell(j, indices[j]);
+            if (cur < v_target) {
+                set_cell(j, indices[j], v_target);
             }
         }
 
-        if (use_stash && v_new >= tau) {
+        if (use_stash && v_target >= tau) {
             int slot1 = h[0] & (STASH_TABLE_SIZE - 1);
             int slot2 = (slot1 + 1) & (STASH_TABLE_SIZE - 1);
 
@@ -174,18 +175,18 @@ public:
                 // Already stashed
             } else if (stash_keys[slot1] == 0) {
                 stash_keys[slot1] = h[0];
-                stash_base[slot1] = v_new;
+                stash_base[slot1] = v_target;
                 stash_exact[slot1] = 0;
                 stash_count++;
             } else if (stash_keys[slot2] == 0) {
                 stash_keys[slot2] = h[0];
-                stash_base[slot2] = v_new;
+                stash_base[slot2] = v_target;
                 stash_exact[slot2] = 0;
                 stash_count++;
             } else {
                 int evict_slot = (stash_base[slot1] + stash_exact[slot1] <= stash_base[slot2] + stash_exact[slot2]) ? slot1 : slot2;
                 uint32_t min_tot = stash_base[evict_slot] + stash_exact[evict_slot];
-                if (v_new > min_tot) {
+                if (v_target > min_tot) {
                     uint64_t evict_h = stash_keys[evict_slot];
                     uint32_t eh1 = (uint32_t)(evict_h & 0xFFFFFFFF);
                     uint32_t eh2 = (uint32_t)((evict_h >> 32) & 0xFFFFFFFF) | 1;
@@ -195,7 +196,7 @@ public:
                         if (min_tot > cur) set_cell(j, idx, min_tot);
                     }
                     stash_keys[evict_slot] = h[0];
-                    stash_base[evict_slot] = v_new;
+                    stash_base[evict_slot] = v_target;
                     stash_exact[evict_slot] = 0;
                 }
             }
@@ -304,10 +305,11 @@ public:
             if (v < v_min) v_min = v;
         }
 
-        uint32_t v_new = v_min + count;
+        uint32_t v_target = v_min + count;
         for (int j = 0; j < depth; j++) {
-            if (table[j * width + indices[j]] == v_min) {
-                table[j * width + indices[j]] = v_new;
+            uint32_t idx = j * width + indices[j];
+            if (table[idx] < v_target) {
+                table[idx] = v_target;
             }
         }
     }

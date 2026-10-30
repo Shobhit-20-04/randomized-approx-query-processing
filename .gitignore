@@ -46,6 +46,8 @@ Thumbs.db
 *.log
 *.zip
 
-# Research papers and manuscripts (excluded from public code repository)
+# Research papers and manuscripts (strictly excluded from public code repository)
 paper/
 *.pdf
+*arch_diagram*
+scripts/generate_arch_diagram.py

@@ -61,12 +61,13 @@ class CountMinSketch:
         self.total_volume += count
 
         if self.conservative_update:
-            # CU: find minimum counter value across all rows
+            # CU: ensure all counter values are at least v_min + count
             v_min = min(int(self.table[j, indices[j]]) for j in range(self.depth))
-            v_new = min(self.max_val, v_min + count)
+            v_target = min(self.max_val, v_min + count)
             for j in range(self.depth):
-                if int(self.table[j, indices[j]]) == v_min:
-                    self.table[j, indices[j]] = v_new
+                cur_val = int(self.table[j, indices[j]])
+                if cur_val < v_target:
+                    self.table[j, indices[j]] = v_target
         else:
             # Standard CMS update
             for j in range(self.depth):
@@ -80,6 +81,9 @@ class CountMinSketch:
     def query(self, key: str | bytes) -> int:
         indices = self._get_indices(key)
         return min(int(self.table[j, indices[j]]) for j in range(self.depth))
+
+    def estimate(self, key: str | bytes) -> int:
+        return self.query(key)
 
     def memory_usage_bytes(self) -> int:
         return self.table.nbytes

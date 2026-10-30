@@ -37,8 +37,8 @@ class ElasticSketch:
             heavy_buckets = max(16, heavy_bytes // 20)
             rem_bytes = max(256, total_memory_bytes - heavy_buckets * 20)
             light_depth = 4
-            counter_bits = 16
-            light_width = max(64, rem_bytes // (light_depth * 2))
+            bytes_per_cell = 1 if counter_bits == 8 else (2 if counter_bits == 16 else 4)
+            light_width = max(64, rem_bytes // (light_depth * bytes_per_cell))
 
         self.num_heavy = heavy_buckets
         self.vote_ratio = vote_ratio

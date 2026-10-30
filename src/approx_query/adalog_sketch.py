@@ -148,14 +148,14 @@ class AdaLogSketch:
             self.hll_registers[col0] = lead_zeros
 
         # 2. Conservative Update (CU) on Base Table:
-        # Only increment counters that match the current minimum across rows.
-        # This significantly dampens collision noise compared to standard CMS.
+        # For arbitrary count >= 1, ensure all cells reach at least min_val + count
+        # This prevents underestimations while minimizing collision inflation.
         current_vals = [self.table[j, indices[j]] for j in range(self.depth)]
         min_val = min(current_vals)
         new_val = min_val + count
 
         for j in range(self.depth):
-            if self.table[j, indices[j]] == min_val:
+            if self.table[j, indices[j]] < new_val:
                 self.table[j, indices[j]] = new_val
 
         # 3. Dynamic Promotion to Elephant Stash
