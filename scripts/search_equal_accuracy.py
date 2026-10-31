@@ -45,6 +45,18 @@ def eval_adalog(b_kb: float) -> float:
     return float(np.mean(maes))
 
 
+def eval_disjoint_stash(b_kb: float) -> float:
+    maes = []
+    total_bytes = int(b_kb * 1024)
+    for seed in SEEDS:
+        stream, gt = generate_zipf_stream(n_stream=N_STREAM, n_unique=N_UNIQUE, alpha=ALPHA, seed=seed)
+        ds = DisjointStashStack(total_memory_bytes=total_bytes, stash_capacity=128, stash_tau=15, cms_counter_bits=8, seed=seed)
+        for x in stream: ds.update(x)
+        errs = [abs(ds.estimate(k) - tf) for k, tf in gt.items()]
+        maes.append(float(np.mean(errs)))
+    return float(np.mean(maes))
+
+
 def eval_disjoint_16(b_kb: float) -> float:
     maes = []
     total_bytes = int(b_kb * 1024)
@@ -122,16 +134,19 @@ if __name__ == "__main__":
     print("\n1. AdaLog-Sketch:")
     res["AdaLog-Sketch"] = find_budget_for_target(eval_adalog, 16.0, 64.0)
 
-    print("\n2. Disjoint Stack (16-bit CU):")
+    print("\n2. Disjoint + Stash (Primary Baseline):")
+    res["Disjoint-Stash"] = find_budget_for_target(eval_disjoint_stash, 40.0, 56.0)
+
+    print("\n3. Disjoint Stack (16-bit CU, Overflow Illustration):")
     res["Disjoint-16bit"] = find_budget_for_target(eval_disjoint_16, 64.0, 160.0)
 
-    print("\n3. Disjoint Stack (32-bit Standard):")
+    print("\n4. Disjoint Stack (32-bit Standard):")
     res["Disjoint-32bit"] = find_budget_for_target(eval_disjoint_32, 96.0, 256.0)
 
-    print("\n4. Elastic Sketch:")
+    print("\n5. Elastic Sketch:")
     res["ElasticSketch"] = find_budget_for_target(eval_elastic, 48.0, 128.0)
 
-    print("\n5. Augmented Sketch:")
+    print("\n6. Augmented Sketch:")
     res["AugmentedSketch"] = find_budget_for_target(eval_augmented, 48.0, 128.0)
 
     out_json = os.path.join(PROJECT_ROOT, "results", "raw", "equal_accuracy_search.json")

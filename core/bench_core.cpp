@@ -171,11 +171,14 @@ int main(int argc, char* argv[]) {
     double est_ns = std::chrono::duration<double, std::nano>(q_end - q_start).count() / 100000.0;
 
     auto amq_start = std::chrono::high_resolution_clock::now();
-    volatile bool amq_hit = false;
+    uint32_t amq_hits = 0;
     for (int i = 0; i < 100000; ++i) {
-        amq_hit = amq_hit || adalog->contains(keys[i % 50000].data(), (int)keys[i % 50000].size());
+        if (adalog->contains(keys[i % 50000].data(), (int)keys[i % 50000].size())) {
+            amq_hits++;
+        }
     }
     auto amq_end = std::chrono::high_resolution_clock::now();
+    if (amq_hits == 0xdeadbeef) std::cout << amq_hits;
     double contains_ns = std::chrono::duration<double, std::nano>(amq_end - amq_start).count() / 100000.0;
     delete adalog;
 

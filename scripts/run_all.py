@@ -274,20 +274,26 @@ def run_exp2_skew_sweep():
     for alpha in alphas:
         print(f"\n--- Skew alpha = {alpha:.2f} at {b_kb} KB across {len(SEEDS)} seeds ---")
 
-        adalog_maes, dis_maes, el_maes, aug_maes = [], [], [], []
+        adalog_maes, dis_stash_maes, dis_maes, el_maes, aug_maes = [], [], [], [], []
         head_errs_dis, tail_errs_dis = [], []
 
         for seed in SEEDS:
             stream, ground_truth = generate_zipf_stream(n_stream=n_stream, n_unique=n_unique, alpha=alpha, seed=seed)
             true_card = len(ground_truth)
 
-            # 1. AdaLog
-            adalog = AdaLogSketch(d=4, w=6682, counter_bits=8, stash_capacity=128, elephant_threshold=15, m=1024, seed=seed)
+            # 1. AdaLog (Memory matched: 768B HLL + 3072B Stash + 4*7232B Matrix = 32768B)
+            adalog = AdaLogSketch(d=4, w=7232, counter_bits=8, stash_capacity=128, elephant_threshold=15, m=1024, seed=seed)
             for x in stream: adalog.update(x)
             adalog_err = [abs(adalog.estimate(k) - tf) for k, tf in ground_truth.items()]
             adalog_maes.append(float(np.mean(adalog_err)))
 
-            # 2. Disjoint
+            # 2. Disjoint + Stash (Primary Baseline, 32 KB matched)
+            dis_stash = DisjointStashStack(total_memory_bytes=total_bytes, stash_capacity=128, stash_tau=15, cms_counter_bits=8, seed=seed)
+            for x in stream: dis_stash.update(x)
+            ds_err = [abs(dis_stash.estimate(k) - tf) for k, tf in ground_truth.items()]
+            dis_stash_maes.append(float(np.mean(ds_err)))
+
+            # 3. Disjoint 16-bit (Overflow illustration)
             disjoint = DisjointBaselineStack(expected_cardinality=true_card, total_memory_bytes=total_bytes, seed=seed)
             for x in stream: disjoint.update(x)
             dis_err = {k: abs(disjoint.estimate(k) - tf) for k, tf in ground_truth.items()}
@@ -300,19 +306,20 @@ def run_exp2_skew_sweep():
             head_errs_dis.append(float(np.mean([dis_err[k] for k in head_keys])))
             tail_errs_dis.append(float(np.mean([dis_err[k] for k in tail_keys])))
 
-            # 3. Elastic
+            # 4. Elastic
             elastic = ElasticSketch(total_memory_bytes=total_bytes, seed=seed)
             for x in stream: elastic.update(x)
             el_err = [abs(elastic.estimate(k) - tf) for k, tf in ground_truth.items()]
             el_maes.append(float(np.mean(el_err)))
 
-            # 4. Augmented
+            # 5. Augmented
             augmented = AugmentedSketch(total_memory_bytes=total_bytes, seed=seed)
             for x in stream: augmented.update(x)
             aug_err = [abs(augmented.estimate(k) - tf) for k, tf in ground_truth.items()]
             aug_maes.append(float(np.mean(aug_err)))
 
         ad_stat = calc_stats(adalog_maes)
+        ds_stat = calc_stats(dis_stash_maes)
         dis_stat = calc_stats(dis_maes)
         el_stat = calc_stats(el_maes)
         aug_stat = calc_stats(aug_maes)
@@ -324,6 +331,8 @@ def run_exp2_skew_sweep():
             "budget_kb": b_kb,
             "adalog_mae": ad_stat["mean"],
             "adalog_mae_std": ad_stat["std"],
+            "disjoint_stash_mae": ds_stat["mean"],
+            "disjoint_stash_mae_std": ds_stat["std"],
             "disjoint_mae": dis_stat["mean"],
             "disjoint_mae_std": dis_stat["std"],
             "disjoint_head_mae": head_stat["mean"],
@@ -334,7 +343,7 @@ def run_exp2_skew_sweep():
             "augmented_mae_std": aug_stat["std"],
         }
         results.append(res_row)
-        print(f"  alpha={alpha:.2f} -> AdaLog MAE: {ad_stat['mean']:6.3f} | Disjoint MAE: {dis_stat['mean']:6.3f} (Head: {head_stat['mean']:6.2f}, Tail: {tail_stat['mean']:6.2f}) | Elastic: {el_stat['mean']:6.3f} | Augmented: {aug_stat['mean']:6.3f}")
+        print(f"  alpha={alpha:.2f} -> AdaLog MAE: {ad_stat['mean']:6.3f} | Disjoint+Stash MAE: {ds_stat['mean']:6.3f} | Disjoint-16 MAE: {dis_stat['mean']:6.3f} (Head: {head_stat['mean']:6.2f}, Tail: {tail_stat['mean']:6.2f}) | Elastic: {el_stat['mean']:6.3f} | Augmented: {aug_stat['mean']:6.3f}")
 
     with open(out_file, "w") as f:
         json.dump(results, f, indent=2)

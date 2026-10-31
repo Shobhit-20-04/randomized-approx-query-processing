@@ -1,117 +1,78 @@
-# CHANGELOG: Empirical and Algorithmic Audit Revisions
+# CHANGELOG: Rigorous Revision and Paper Reconciliation
 
-This document tracks all empirical number changes, theoretical revisions, and architectural fixes applied to *"AdaLog-Sketch: A Unified Approximate Query Processing Data Structure for Multi-Task Stream Analytics"* following the reviewer audit.
-
-**Ground Rule Guarantee:** Zero numbers were invented or hand-edited. Every number below was computed by reproducible scripts in `scripts/run_all.py`, `scripts/search_equal_accuracy.py`, and `experiments/exp9_real_dataset.py`, evaluated across 10 random seeds (`SEEDS = [42, 100, 2024, 31415, 27182, 16180, 57721, 14142, 17320, 22360]`), and written to `results/raw/*.json`.
-
----
-
-## 1. Table II: Multi-Task Performance Across Memory Budgets ($N=300{,}000, \alpha=1.25$)
-
-| Metric / Configuration | Budget | Old Value (Paper) | New Value (10-Seed Mean $\pm$ 95% CI) | Root Cause / Note |
-|---|---|---|---|---|
-| **AdaLog-Sketch Raw MAE** | 8 KB | 6.73 | **15.88 $\pm$ 0.09** | $K=128$ stash allocation (3 KB) tested across 10 seeds |
-| Disjoint Stack Raw MAE | 8 KB | 25.85 | **30.24 $\pm$ 0.89** | Multi-seed empirical mean |
-| Elastic Sketch Raw MAE | 8 KB | 19.71 | **23.37 $\pm$ 0.13** | 8-bit counter sizing baseline |
-| Augmented Sketch Raw MAE | 8 KB | 19.50 | **22.98 $\pm$ 0.09** | 8-bit counter sizing baseline |
-| *Disjoint + Stash Raw MAE* | 8 KB | *(New)* | **16.13 $\pm$ 0.09** | New ablation isolating unification vs stash |
-| **AdaLog Top-100 (P / R)** | 8 KB | F1: 0.485 | **1.00 / 1.00** | $K=128 \ge K_{sat}$ achieves 100% recall ceiling |
-| Disjoint Top-100 (P / R) | 8 KB | 0.000 | **N/A** | Disjoint stack lacks top-$k$ tracking |
-| **AdaLog Underestimations** | 8 KB | 0 | **0** | Verified across all 18,702 stream keys |
-| Disjoint Underestimations | 8 KB | 0 | **1** | Top key ($f \approx 68{,}000$) hits 16-bit saturation |
-| **AdaLog-Sketch Raw MAE** | 16 KB | 1.75 | **3.10 $\pm$ 0.02** | Multi-seed empirical mean |
-| Disjoint Stack Raw MAE | 16 KB | 8.18 | **10.15 $\pm$ 0.22** | Multi-seed empirical mean |
-| Elastic Sketch Raw MAE | 16 KB | 6.67 | **8.44 $\pm$ 0.04** | Multi-seed empirical mean |
-| Augmented Sketch Raw MAE | 16 KB | 6.53 | **8.20 $\pm$ 0.04** | Multi-seed empirical mean |
-| *Disjoint + Stash Raw MAE* | 16 KB | *(New)* | **3.94 $\pm$ 0.02** | New ablation isolating unification vs stash |
-| **AdaLog-Sketch Raw MAE** | 32 KB | 0.40 | **0.61 $\pm$ 0.00** | Multi-seed empirical mean |
-| Disjoint Stack Raw MAE | 32 KB | 2.51 | **3.31 $\pm$ 0.22** | Multi-seed empirical mean |
-| Elastic Sketch Raw MAE | 32 KB | 1.90 | **2.69 $\pm$ 0.02** | Multi-seed empirical mean |
-| Augmented Sketch Raw MAE | 32 KB | 1.87 | **2.61 $\pm$ 0.02** | Multi-seed empirical mean |
-| *Disjoint + Stash Raw MAE* | 32 KB | *(New)* | **0.92 $\pm$ 0.01** | Proves unification adds 33.7% gain beyond stash |
-| **AdaLog AMQ FPR** | 32 KB | 47.16% | **73.25%** | Measured against 10,000 negative keys |
-| **AdaLog Card. RSE** | 32 KB | 0.0396 | **0.0424** | Multi-seed RMSE / true cardinality ($m=1024$) |
-| **AdaLog-Sketch Raw MAE** | 64 KB | 0.13 | **0.09 $\pm$ 0.00** | Multi-seed empirical mean |
-| Disjoint Stack Raw MAE | 64 KB | 0.78 | **0.95 $\pm$ 0.01** | Multi-seed empirical mean |
-| Elastic Sketch Raw MAE | 64 KB | 0.40 | **0.69 $\pm$ 0.01** | Multi-seed empirical mean |
-| Augmented Sketch Raw MAE | 64 KB | 0.41 | **0.67 $\pm$ 0.00** | Multi-seed empirical mean |
-| **AdaLog-Sketch Raw MAE** | 128 KB | 0.10 | **0.01 $\pm$ 0.00** | Multi-seed empirical mean ($11.3\times$ lower than Elastic) |
-| Disjoint Stack Raw MAE | 128 KB | 0.39 | **0.31 $\pm$ 0.01** | Multi-seed empirical mean |
-| Elastic Sketch Raw MAE | 128 KB | 0.05 | **0.11 $\pm$ 0.00** | Multi-seed empirical mean |
-| Augmented Sketch Raw MAE | 128 KB | 0.08 | **0.11 $\pm$ 0.00** | Multi-seed empirical mean |
+**Paper Title:** AdaLog-Sketch: A Unified Approximate Query Processing Data Structure for Multi-Task Stream Analytics  
+**Branch:** `audit-rigor-fixes`  
+**Date:** October 31, 2026  
+**Testbed:** 13th Gen Intel Core i5-13450HX (10 cores, 16 threads, 20 MB cache), 16 GB DDR4, MinGW-w64 GCC 16.1.0 (-O3), Python 3.11.9  
 
 ---
 
-## 2. Table III: Equal-Accuracy Memory Comparison ($\mathrm{MAE}\le 0.40$)
+## 1. Quantitative Discrepancy Reconciliation (Old Value $\to$ New Value)
 
-| Architecture | Old Paper Value | New Binary Search Result | Note / Correction |
-|---|---|---|---|
-| **AdaLog-Sketch (Ours)** | 32 KB | **37.8 KB** | Baseline |
-| Disjoint Stack (16-bit CU) | $\approx$ 44 KB ($-$27.3%) | **105.2 KB** (**64.1% reduction**) | Disjoint MAE at 64 KB is 0.95; needs 105.2 KB to hit 0.40 |
-| Disjoint Stack (32-bit CMS) | $\approx$ 76 KB ($-$57.9%) | **$>$ 256.0 KB** (**$>$ 85.2% reduction**) | At 255.4 KB, 32-bit CMS still has MAE 0.458 |
-| Elastic Sketch | $\approx$ 64 KB ($-$50.0%) | **80.5 KB** (**53.0% reduction**) | Reaches MAE $\le 0.40$ at 80.5 KB |
-| Augmented Sketch | $\approx$ 64 KB ($-$50.0%) | **79.9 KB** (**52.7% reduction**) | Reaches MAE $\le 0.40$ at 79.9 KB |
+Every number below was regenerated directly by executable scripts in the repository (`scripts/run_all.py`, `scripts/search_equal_accuracy.py`, `core/bench_core.exe`, `scripts/measure_cardinality_100trials.py`, `scripts/run_exp9_real.py`) and recorded in `results/raw/*.json`. No numbers have been hand-edited or invented.
 
-*Double-negative phrasing ("-27.3% less RAM") was eliminated.*
-
----
-
-## 3. Table IV: Skew Sensitivity Evaluation (32 KB Budget, Head vs. Tail Breakdown)
-
-| Skew $\alpha$ | Old AdaLog MAE | New AdaLog MAE | Old Disjoint MAE | New Disjoint MAE | Disjoint Head MAE | Disjoint Tail MAE | New Elastic MAE |
-|---|---|---|---|---|---|---|---|
-| **1.05** | 1.53 | **3.43 $\pm$ 0.02** | 7.25 | **10.82 $\pm$ 0.03** | 0.03 | 10.84 | **10.00 $\pm$ 0.04** |
-| **1.15** | 0.85 | **1.75 $\pm$ 0.01** | 4.23 | **6.17 $\pm$ 0.10** | 0.02 | 6.19 | **5.55 $\pm$ 0.02** |
-| **1.25** | 0.40 | **0.73 $\pm$ 0.01** | 2.51 | **3.31 $\pm$ 0.22** | 31.35 | 3.16 | **2.69 $\pm$ 0.02** |
-| **1.35** | 0.14 | **0.24 $\pm$ 0.01** | 3.47 | **3.24 $\pm$ 0.01** | 225.17 | 1.31 | **1.11 $\pm$ 0.01** |
-| **1.50** | 0.02 | **0.03 $\pm$ 0.00** | 10.14 | **9.11 $\pm$ 0.05** | 496.14 | 0.29 | **0.20 $\pm$ 0.01** |
-
-*Diagnosis of Disjoint Non-Monotonic Curve:* Tail error drops from 10.84 to 0.29, but head error explodes from 0.03 to 496.14 as top keys exceed 16-bit saturation and collide with one another. AdaLog's stash absorbs head keys completely, keeping head error at 0.0 and driving total MAE monotonically down to 0.03.
+| Metric / Result Location | Old Paper Claim | New Measured Result | Root Cause & Scientific Rationale |
+| :--- | :--- | :--- | :--- |
+| **Headline Memory Saving ($\mathrm{MAE} \le 0.40$)** (Abstract, Table IV, Sec. VI.B) | $64.1\%$ memory reduction ($37.8$ KB vs. $105.2$ KB) | **$16.4\%$** memory reduction vs. `Disjoint+Stash` ($37.8$ KB vs. $45.2$ KB); $53.0\%$ vs. Elastic ($80.5$ KB); $52.7\%$ vs. Augmented ($79.9$ KB) | The $64.1\%$ claim was an artifact of 16-bit counter saturation on the disjoint baseline ($f > 65,535$ causing massive head error). `Disjoint+Stash` is now the honest primary baseline; $16.4\%$ represents genuine savings from unifying Bloom filter memory. |
+| **Skew Sweep Error Reduction** ($\alpha = 1.05$ to $1.50$, Table V, Sec. VI.C) | $3.2\times$ to $267.9\times$ ($99.6\%$) error reduction vs. Disjoint Stack | **$26.8\%$ to $40.0\%$** reduction vs. `Disjoint+Stash` (MAE: $3.01 \to 0.03$ vs. $4.11 \to 0.05$) | The $267.9\times$ advantage at $\alpha=1.50$ was caused by the top key ($f = 114,894$) overflowing the 16-bit baseline (Head $\mathrm{MAE} = 496.14$). Against the fair stashed baseline, AdaLog achieves a solid $26.8\%$--$40.0\%$ advantage due to $39.5\%$ wider matrix rows. |
+| **Exp 2 AdaLog MAE at 32 KB, $\alpha = 1.25$** (Table V, Fig. 3 vs. Table III, VII) | $0.73 \pm 0.01$ (Table V) vs. $0.61 \pm 0.00$ (Table III/VII) | **$0.610 \pm 0.004$** across all tables | Table V previously hardcoded an uncoordinated width $w = 6682$. Re-evaluating with the exact budget-derived width $w = 7232$ matches Table III to the third decimal place. |
+| **C++ Ingestion Throughput** (Abstract, Table VI, Sec. VI.D) | $22.22 \pm 0.46$ Mops/s ($45.0$ ns) vs. $20.27 \pm 0.24$ Mops/s ($49.3$ ns) | **$21.97 \pm 0.38$ Mops/s** ($45.52 \pm 0.79$ ns) vs. **$19.84 \pm 0.45$ Mops/s** ($50.43 \pm 1.18$ ns) | Measured over 10 consecutive warm runs on 13th Gen Intel Core i5-13450HX. AdaLog achieves a statistically robust $1.11\times$ speedup ($9.7\%$ latency reduction) over the disjoint stack. |
+| **AMQ Query Latency** (Sec. VI.D, Table VI) | $0.2$ ns/op (sub-cycle) | **$12.26$ ns/op** | Previous benchmark contained `amq_hit = amq_hit \|\| adalog->contains(...)`, which short-circuited after the first hit and was eliminated by compiler optimizations. Fixed by accumulating and consuming hits. |
+| **Point Query Latency** (Sec. VI.D, Table VI) | $12.8$ ns/op | **$13.43$ ns/op** | Validated via non-inlined tight loop benchmark in compiled C++ (-O3). |
+| **Cardinality Precision (RSE)** (Abstract, Table I, Table III, Sec. VII.B) | Flat $0.0424$ across budgets; baseline $0.0098$ at all budgets | **$0.0239 \pm 0.0183$** ($m=1024$, 768 B, 100 trials, 95% CI: $[0.0203, 0.0276]$); dedicated HLL **$0.0053 \pm 0.0043$** ($m=16384$, 12 KB, 100 trials, 95% CI: $[0.0045, 0.0062]$) | Evaluated over 100 independent trials (10 seeds cannot statistically distinguish 0.0424 from 0.0376). Clearly documents the memory cost: reaching $\mathrm{RSE} < 0.01$ requires 12 KB (37.5% of a 32 KB budget), whereas AdaLog spends only 768 B (2.4%). |
+| **Membership False Positive Rate** (Abstract, Sec. VII.A) | "$1.37\%$ vs $0.06\%$ at 128 KB; Bloom wins only $\le 32$ KB" | **$3.86\%$ vs. $0.45\%$** at 128 KB; Bloom wins at **every budget** (gap widens to $8.6\times$ at 128 KB) | Honest characterization: A dedicated 1-bit Bloom filter packs $8\times$ more cells per byte than 8-bit counters and achieves lower FPR across all allocations. AdaLog explicitly trades higher FPR for 0 marginal memory bytes. |
+| **Additive Write-Back Error (Proposition 1)** (Sec. V.A) | Double-counting inflates count by "up to $+100\%$"; "unique" write-back | Double-counting inflates count by **$+66.7\%$ ($+67\%$)**; dropped "unique" claim | Counter-example with $c_{base} = 20, c_{exact} = 10, c_{evict} = 30$: additive rule gives $20 + 30 = 50$, an inflation of $(50 - 30)/30 = +66.7\%$ ($+67\%$, not $+100\%$). Monotonic $\max()$ is sufficient, but incremental $T + c_{exact}$ is also valid. |
+| **Stash Sizing vs. Saturation ($K$ vs. $K_{sat}$)** (Theorem 2, Sec. V.A) | Unconditional zero underestimation ($\hat{f} \ge f$) | **Conditional guarantee:** strictly holds for raw queries when **$K \ge K_{sat} = \#\{x \mid f(x) \ge 255\}$** | At $N=300\text{k}$, $K_{sat} \le 102 \le 128$, so strictly 0 underestimations occur. At $N=1\text{M}$, $K_{sat} \le 314 > 128$, meaning keys with $f \ge 255$ saturate if $K$ is not scaled. Debiased estimates $\tilde{f}(x)$ can also underestimate if noise is over-predicted. |
+| **Real Gutenberg Literature Stream** (Sec. VII.D) | $\mathrm{MAE} = 3.18$, stash occupancy $98/128$ | **$\mathrm{MAE} = 3.17$**, occupancy **$128/128$** ($\tau = 10$); outperforms `Disjoint+Stash` ($4.53$), Elastic ($11.85$), and Disjoint-16 ($12.55$) | At $\tau = 15$, exactly 98 vocabulary items exceeded 15 occurrences. Setting $\tau = 10$ admits items with frequencies 10–14, reaching full occupancy 128/128 with virtually identical MAE ($3.174$ vs. $3.175$). |
+| **Real CAIDA IP Backbone Trace** (Sec. VII.D) | Not reported | AdaLog $\mathrm{MAE} = \mathbf{13.47}$ (128/128 occupancy) vs. `Disjoint+Stash` $\mathbf{17.02}$ and Elastic $\mathbf{34.93}$ | Verified on high-velocity packet trace (300,000 packets) demonstrating 20.8% error reduction over Disjoint+Stash and 2.59x over Elastic Sketch. |
+| **Empirical Confidence Intervals** (Sec. V.B, Exp 6) | "Certified intervals" with unexplained $1+0.15d$ | **Empirical confidence intervals** with **$100.0\%$ coverage** across all skews, average width **$3.1$ to $5.3$ counts** | Renamed from "certified" to "empirical confidence intervals" because rows in double hashing and CU are not statistically independent. Empirically validated across all Zipfian skews. |
+| **Planner Error Across Budgets** (Abstract, Contributions, Sec. V.B) | Stale claim: "within 2.74%" | Measured across budgets: **$5.40\%$** at 8 KB, **$38.39\%$** at 16 KB, **$9.45\%$** at 128 KB | Closed-form model correctly predicts order-of-magnitude error scaling across budgets, but conservative model overestimates error at 32–64 KB where elephant stash clears heavy hitters more effectively than modeled. |
 
 ---
 
-## 4. Table V: Native Compiled C++ Latency & Throughput ($N=1{,}000{,}000$)
+## 2. Text, Formatting, and Reference Corrections
 
-| Kernel | Old Throughput | New Throughput (Mean $\pm$ Std) | Old Update Latency | New Update Latency | Median | IQR |
-|---|---|---|---|---|---|---|
-| **AdaLog-Core (Unified)** | 1.92 Mops/s | **22.22 $\pm$ 0.46 Mops/s** | 522.0 ns | **45.0 $\pm$ 0.9 ns** | **44.7 ns** | **1.4 ns** |
-| **Disjoint-Core (BF+CMS+HLL)** | 1.88 Mops/s | **20.27 $\pm$ 0.24 Mops/s** | 532.3 ns | **49.3 $\pm$ 0.6 ns** | **49.5 ns** | **1.1 ns** |
-| **CMS-Core (Standalone CU)** | 1.95 Mops/s | **29.02 $\pm$ 0.49 Mops/s** | 513.8 ns | **34.5 $\pm$ 0.6 ns** | **34.3 ns** | **0.5 ns** |
-| **Bloom-Core (Standalone BF)** | 2.45 Mops/s | **85.81 $\pm$ 2.43 Mops/s** | 407.8 ns | **11.7 $\pm$ 0.3 ns** | **11.6 ns** | **0.3 ns** |
-| **HLL-Core (Standalone HLL)** | 2.47 Mops/s | **165.28 $\pm$ 3.34 Mops/s** | 404.3 ns | **6.1 $\pm$ 0.1 ns** | **6.0 ns** | **0.2 ns** |
-| *Point Query Latency* | 397.3 ns | **12.8 ns/op** | — | — | — | — |
-| *AMQ Query Latency* | 389.8 ns | **0.2 ns/op** | — | — | — | — |
+1. **LaTeX Overleaf Errors Fully Resolved:**
+   - **`@IEEEauthorhalign` Mismatch:** Removed fragile `\linebreakand` hack from preamble. Implemented clean, robust `minipage` author layout matching the exact design: Shobhit Agrawal & Mayuri Rajendra Pawar on the top row, and Dr. Parveen Sultana H centered on the bottom row.
+   - **`amsthm` Conflict:** Added `\let\proof\relax \let\endproof\relax` before loading `amsthm`, preventing internal macro collisions with `IEEEtran.cls`.
+   - **Undefined Environments:** Defined `\newtheorem{proposition}{Proposition}` cleanly in the preamble.
+   - **Table II Layout Overlap:** Replaced wide 7-column table with compact column headers (`Synopsis`, `AMQ`, `Freq.`, `Card.`, `Top-k`, `Shared`, `Hashes`) wrapped in `\resizebox{\columnwidth}{!}{% ... }`, completely eliminating float collisions and column gutter bleeding into the second column.
+   - **Tab Character in `\textit`:** Replaced all 43 occurrences of raw `\t` tab characters in `\bibitem` bibliography entries with valid `\textit`.
+   - **Equation Overflow:** Condensed Equation (4) ($P_{\mathrm{all\_coll}} = (1 - (1 - 1/w)^H)^d$) and split Equation (6) across lines to prevent 2-column margin overflow.
 
-*Resolution of Harness Overhead:* Re-benchmarked in pure C++ (`core/bench_core.cpp`) with pre-allocated arrays and no Python/ctypes marshalling overhead. Disjoint baseline and AdaLog are evaluated within the exact same tight C++ loop over 10 runs.
+2. **Citations & Literature Alignment:**
+   - Removed orphaned names: "Li et al. [3]", "Siva [5]", and "Aladiyan [4]" from Sections II.B and II.D.
+   - Restored references `[3]`, `[4]`, `[5]` to their true citations in computer architecture (Ailamaki et al., Manegold et al., Drepper).
+   - Corrected Estan & Varghese to 2003 in Table I to match `\bibitem{b9}` (TOCS 2003).
+   - Standardized single-hash pipeline to **XXH3-128** (removed "MurmurHash3 or XXH3").
+   - Removed all occurrences of "strict DSA principles" from prose.
+   - Fixed Algorithm 1 walkthrough line numbers: Arrival 1 (lines 6–9, 15–19), Promotion (lines 21–23), Stash residence (lines 2–4), Eviction (lines 25–32).
+   - Corrected experiment numbering: Exp 8 renamed to Exp 5.
 
----
-
-## 5. Table VI: Systematic Component Ablations (32 KB, $\alpha=1.25$)
-
-| Ablation Variant | Old Width | New Width | Old MAE | New MAE $\pm$ Std | Old Peak | New Peak | Old FPR | New FPR | Old RSE | New RSE |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **AdaLog-Default (Decoupled)** | 9,984 | **7,232** | 0.40 | **0.61 $\pm$ 0.00** | 14 | **18** | 47.11% | **73.36%** | 0.0396 | **0.0424** |
-| **Coupled HLL ($m=w$)** | 9,984 | **6,251** | 0.54 | **0.83 $\pm$ 0.01** | 19 | **19** | 55.89% | **81.13%** | 0.0399 | **0.0152** |
-| **No Stash ($-$Stash)** | 10,240 | **8,000** | 15.71 | **11.42 $\pm$ 0.06** | 79 | **34** | 54.96% | **66.34%** | 0.0157 | **0.0424** |
-| **No CU ($-$Conservative)** | 9,984 | **7,232** | 1.28 | **1.52 $\pm$ 0.02** | 33 | **28** | 55.89% | **73.36%** | 0.0399 | **0.0424** |
-| **16-bit Counters** | 3,968 | **3,616** | 1.71 | **2.41 $\pm$ 0.02** | 365 | **49** | 91.08% | **97.82%** | 0.0043 | **0.0424** |
-| **32-bit Counters** | 1,984 | **1,808** | 5.48 | **7.53 $\pm$ 0.06** | 88 | **82** | 99.89% | **99.99%** | 0.0061 | **0.0424** |
-| **Variant B (1-bit Plane)** | 7,200 | **7,012** | 0.54 | **0.66 $\pm$ 0.01** | 19 | **23** | 99.91% | **99.99%** | 0.0399 | **0.0424** |
-
-*Key Insights:*
-1. Counter width scaling strictly adheres to theory: 8-bit ($w=7,232$) is $2\times$ the width of 16-bit ($w=3,616$) and $4\times$ the width of 32-bit ($w=1,808$).
-2. Coupled HLL achieves RSE 0.0152, matching theoretical Flajolet bound $1.04/\sqrt{6251} = 0.0131$.
-3. Variant B width $w=7,012$ reflects the deduction of the 1-bit presence plane ($w/8$ bytes). 18,700 distinct stream keys mapping into 7,012 bits saturates the bitset, causing 99.99% FPR.
+3. **Reproducibility & Testbed Documentation:**
+   - Added Table `tab:params` documenting exact parameter configurations across all 5 evaluated architectures.
+   - Documented processor hardware: 13th Gen Intel Core i5-13450HX, 16 GB DDR4, MinGW-w64 GCC 16.1.0 (-O3).
+   - Documented the exact 10 evaluation seeds: `{42, 100, 2024, 31415, 27182, 16180, 57721, 14142, 17320, 22360}`.
+   - Formally defined all metrics: MAE, ARE, Peak Overestimation Error, AMQ False Positive Rate (10,000 probe keys), Cardinality RSE.
 
 ---
 
-## 6. Real Stream & Failure-Mode Analysis (Experiment 9)
+## 3. Decisions for Human Author Judgment
 
-| Workload | Parameters | AdaLog-Sketch MAE | Baseline MAE | Outcome |
-|---|---|---|---|---|
-| **Real Word Stream** | 300,000 tokens, 24,939 unique words | **3.18** | Disjoint: **12.55** | **AdaLog Wins ($3.95\times$ lower error)** |
-| **Low Skew Stream** | $\alpha = 0.50$, 300k ops, 100k universe | **13.17** | Disjoint: **36.57** | **AdaLog Wins ($2.78\times$ lower error)** |
-| **Uniform Stream (8 KB)** | $\alpha = 0.0$, 300k ops, 50k universe | **116.88** | Dedicated CMS: **58.24** | **Dedicated CMS Wins ($2.0\times$ lower error)** |
-| **Uniform Stream (32 KB)** | $\alpha = 0.0$, 300k ops, 50k universe | **11.37** | Dedicated CMS: **9.36** | **Dedicated CMS Wins ($1.2\times$ lower error)** |
+The following design decisions are surfaced for your final review:
 
-*Failure-Mode Finding:* On uniform streams where no items exceed $\tau=15$, the elephant stash is unutilized overhead (3,072 B). Dedicated sketches utilize 100% of the byte budget for matrix width, resulting in fewer collisions.
+1. **Baseline Naming in Publication Text:**
+   - *Current choice:* We have designated the fair baseline as **`Disjoint+Stash`** in Table IV, Table V, and the main text.
+   - *Alternative:* You could designate it as **`Disjoint Stack (Stashed)`** or **`Augmented Disjoint Baseline`**.
+   - *Recommendation:* Keep `Disjoint+Stash` as it clearly conveys that an elephant stash was added to the disjoint stack to prevent unfair counter overflow.
+
+2. **Stash Sizing Policy for Large Streams ($N \ge 1\text{M}$):**
+   - *Current choice:* We proved that the zero-underestimate invariant holds whenever $K \ge K_{sat} = \#\{x \mid f(x) \ge 255\}$. At $N = 300\text{k}$, $K = 128 \ge 102$, so the invariant holds unconditionally. At $N = 1\text{M}$, $K_{sat} \approx 314 > 128$.
+   - *Options:*
+     - (A) Recommend dynamic stash scaling ($K \propto N^{1 - 1/\alpha}$) for unbounded streams.
+     - (B) State the condition $K \ge K_{sat}$ as a formal operational requirement and raise an overflow flag when the stash is saturated.
+   - *Recommendation:* Option (B) is mathematically rigorous, honest, and directly answers the reviewer's concern without altering the 32 KB embedded budget.
+
+3. **Membership Framing:**
+   - *Current choice:* We explicitly state that dedicated Bloom filters achieve lower FPR at every budget ($8.6\times$ lower at 128 KB, 0.45% vs. 3.86%), and frame AdaLog's contribution as **zero marginal memory bytes** and single-hash cache efficiency for pre-filtering pipelines.
+   - *Recommendation:* Retain this honest framing. Reviewers respect acknowledging trade-offs over claiming universal dominance.
