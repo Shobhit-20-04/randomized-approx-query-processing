@@ -167,7 +167,7 @@ def plot_experiment_3():
     ax1.grid(axis="y", linestyle="--", alpha=0.5)
     ax1.set_ylim(0, max(mops) * 1.2)
     for i, v in enumerate(mops):
-        ax1.text(i, v + 0.04, f"{v:.1f}", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
+        ax1.text(i, v + 0.04, f"{v:.2f}", ha="center", va="bottom", fontsize=7.0, fontweight="bold")
 
     # (b) Latency
     ax2.bar(range(len(ns_op)), ns_op, color=colors, width=0.52, edgecolor="#333333", linewidth=0.8)
@@ -179,7 +179,7 @@ def plot_experiment_3():
     ax2.grid(axis="y", linestyle="--", alpha=0.5)
     ax2.set_ylim(0, max(ns_op) * 1.2)
     for i, v in enumerate(ns_op):
-        ax2.text(i, v + 1.0, f"{v:.1f}ns", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
+        ax2.text(i, v + 1.0, f"{v:.2f} ns", ha="center", va="bottom", fontsize=7.0, fontweight="bold")
 
     plt.tight_layout()
     plt.savefig("results/figures/fig3_latency_throughput.png", bbox_inches="tight")

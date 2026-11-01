@@ -52,6 +52,8 @@ env_stack = []
 env_regex = re.compile(r"\\(begin|end)\{([^}]+)\}")
 for match in env_regex.finditer(text):
     op, env_name = match.group(1), match.group(2)
+    if env_name == "@IEEEauthorhalign":
+        continue
     if op == "begin":
         env_stack.append((env_name, match.start()))
     else:
