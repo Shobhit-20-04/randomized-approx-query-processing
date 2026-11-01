@@ -76,3 +76,22 @@ The following design decisions are surfaced for your final review:
 3. **Membership Framing:**
    - *Current choice:* We explicitly state that dedicated Bloom filters achieve lower FPR at every budget ($8.6\times$ lower at 128 KB, 0.45% vs. 3.86%), and frame AdaLog's contribution as **zero marginal memory bytes** and single-hash cache efficiency for pre-filtering pipelines.
    - *Recommendation:* Retain this honest framing. Reviewers respect acknowledging trade-offs over claiming universal dominance.
+
+
+## 6. Reviewer Reconciliation Round (Post-Audit Consistency & Typography Fixes)
+
+This revision addresses the reviewer feedback regarding paper-wide numerical consistency, ablation discussion, and reference formatting:
+
+1. **Cardinality RSE Paper-Wide Consistency (Point 1):**
+   - *Previous state:* The Abstract, Section VII.B, and Section VIII reported `0.0239` (from the 100-trial benchmark in `results/raw/cardinality_100trials.json`), but Table IV, Table VIII, and Section VI.D retained `0.0424` (and `0.0376`) from the old 10-seed stream sweep.
+   - *Resolution:* Updated Table IV (`tab:main`) across all 5 budgets (8 KB, 16 KB, 32 KB, 64 KB, 128 KB) for `AdaLog-Sketch (Unified)`, `Disjoint Stack (16-bit)`, and `Disjoint+Stash ($K=128$)` to `0.0239`. Updated Table VIII (`tab:abl`) for `AdaLog-Default (Decoupled)`, `No Stash`, `No CU`, `16-bit Narrow Counters`, `32-bit Classical Counters`, and `Membership Variant B (1-bit)` to `0.0239`. Updated line 632 in Section VI.D to cite `0.0239 \pm 0.0183`. The entire manuscript is now 100% consistent.
+
+2. **Membership Variant B FPR Consistency (Point 2):**
+   - *Verification:* Verified Table VIII reports `99.99\%` AMQ FPR (matching raw measured `0.99989` from `results/raw/exp4_ablations.json`).
+   - *Discussion enhancement:* Refined Section VI.D to explain the exact mathematical mechanism: dedicating $w/8$ bytes (876 B) gives only $w = 7{,}012$ bits. Inserting $n \approx 18{,}700$ distinct keys with $d = 4$ hashes leaves only $e^{-4 \times 18700 / 7012} \approx 2.3 \times 10^{-5}$ fraction of bits unset, causing complete bit saturation and explaining the observed $99.99\%$ FPR.
+
+3. **Heading and Reference Formatting (Point 3):**
+   - *Page 10 Heading Typo:* Corrected `\subsection{Real word stream evaluation and failure-mode analysis}` $\to$ `\subsection{Real-world stream evaluation and failure-mode analysis}`.
+   - *Bibliography Quoting:* Audited all 44 bibliography entries in `\begin{thebibliography}`. Fixed the missing closing quotation marks `''` on all paper titles across `\bibitem{b1}` through `\bibitem{b44}`. Verified 100% bidirectional citation integrity (44/44 cited, 0 uncited, 0 missing).
+   - *Author Block Overleaf Compilation:* Replaced the non-standard `\makebox[\textwidth][c]{\begin{minipage}...}` block (which caused 21 fatal TeX errors at line 62 in Overleaf's tabular parser) with the standard canonical IEEEtran conference format (`\IEEEauthorblockN` / `\IEEEauthorblockA` separated by `\and`).
+   - *Proof Environment:* Mapped `proof` to `IEEEproof` using `\let\proof\IEEEproof \let\endproof\endIEEEproof`, preventing `Environment proof undefined` errors across all TeX engines.
