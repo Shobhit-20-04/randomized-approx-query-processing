@@ -10,6 +10,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
@@ -33,12 +34,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p core
-          g++ -O3 -mavx2 -shared -fPIC -o core/libadalog_core.so src/cpp/core/adalog_core.cpp
-
-      - name: Build Native C++ Engine (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          scripts\build\build_core.bat
+          g++ -O3 -mavx2 -shared -fPIC -Isrc/cpp/core -Isrc/cpp/hashing -Icore -o core/libadalog_core.so src/cpp/core/adalog_core.cpp
 
       - name: Run Unit Tests
         run: |
