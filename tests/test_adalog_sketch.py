@@ -159,6 +159,12 @@ def test_conservative_update_batch_increment_counterexample():
     Under naive rule, cells become (8, 6, 6), so min is 6 < 8 (underestimate).
     Under corrected rule, cells become (8, 8, 8), so min is 8 (no underestimate).
     """
+    import os
+    import sys
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+
     from adalog.sketch import AdaLogSketch as ModularAdaLog
     from baselines.count_min_sketch import CountMinSketch as BaselineCMS
 
