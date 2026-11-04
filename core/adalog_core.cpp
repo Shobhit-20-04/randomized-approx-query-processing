@@ -540,44 +540,50 @@ public:
 // EXPORTED C API FOR BINDINGS
 // ============================================================================
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+  #define ADALOG_API __declspec(dllexport)
+#else
+  #define ADALOG_API __attribute__((visibility("default")))
+#endif
+
 extern "C" {
-    __declspec(dllexport) void* adalog_create(int width, int depth, int bits, int scap, int thresh, uint32_t seed) {
+    ADALOG_API void* adalog_create(int width, int depth, int bits, int scap, int thresh, uint32_t seed) {
         return new AdaLogCore(width, depth, bits, scap, thresh, 1024, seed);
     }
-    __declspec(dllexport) void* adalog_create_full(int width, int depth, int bits, int scap, int thresh, int hll_m, uint32_t seed) {
+    ADALOG_API void* adalog_create_full(int width, int depth, int bits, int scap, int thresh, int hll_m, uint32_t seed) {
         return new AdaLogCore(width, depth, bits, scap, thresh, hll_m, seed);
     }
-    __declspec(dllexport) void adalog_destroy(void* ptr) {
+    ADALOG_API void adalog_destroy(void* ptr) {
         delete (AdaLogCore*)ptr;
     }
-    __declspec(dllexport) void adalog_update(void* ptr, const char* key, int len, uint32_t count) {
+    ADALOG_API void adalog_update(void* ptr, const char* key, int len, uint32_t count) {
         ((AdaLogCore*)ptr)->update(key, len, count);
     }
-    __declspec(dllexport) uint32_t adalog_estimate(void* ptr, const char* key, int len) {
+    ADALOG_API uint32_t adalog_estimate(void* ptr, const char* key, int len) {
         return ((AdaLogCore*)ptr)->estimate(key, len);
     }
-    __declspec(dllexport) bool adalog_contains(void* ptr, const char* key, int len) {
+    ADALOG_API bool adalog_contains(void* ptr, const char* key, int len) {
         return ((AdaLogCore*)ptr)->contains(key, len);
     }
-    __declspec(dllexport) double adalog_cardinality(void* ptr) {
+    ADALOG_API double adalog_cardinality(void* ptr) {
         return ((AdaLogCore*)ptr)->cardinality();
     }
-    __declspec(dllexport) int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint32_t* out_counts) {
+    ADALOG_API int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint32_t* out_counts) {
         return ((AdaLogCore*)ptr)->get_top_k(k, out_hashes, out_counts);
     }
-    __declspec(dllexport) int adalog_get_stash_count(void* ptr) {
+    ADALOG_API int adalog_get_stash_count(void* ptr) {
         return ((AdaLogCore*)ptr)->stash_count;
     }
-    __declspec(dllexport) uint64_t adalog_get_stash_evictions(void* ptr) {
+    ADALOG_API uint64_t adalog_get_stash_evictions(void* ptr) {
         return ((AdaLogCore*)ptr)->stash_evictions;
     }
-    __declspec(dllexport) uint64_t adalog_get_stash_rejections(void* ptr) {
+    ADALOG_API uint64_t adalog_get_stash_rejections(void* ptr) {
         return ((AdaLogCore*)ptr)->stash_rejections;
     }
-    __declspec(dllexport) size_t adalog_get_memory_bytes(void* ptr) {
+    ADALOG_API size_t adalog_get_memory_bytes(void* ptr) {
         return ((AdaLogCore*)ptr)->get_memory_bytes();
     }
-    __declspec(dllexport) void adalog_hash128(const char* key, int len, uint32_t seed, uint64_t* out_h1, uint64_t* out_h2) {
+    ADALOG_API void adalog_hash128(const char* key, int len, uint32_t seed, uint64_t* out_h1, uint64_t* out_h2) {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
         if (out_h1) *out_h1 = h[0];
@@ -585,46 +591,46 @@ extern "C" {
     }
 
     // CMS
-    __declspec(dllexport) void* cms_create(int width, int depth, uint32_t seed) {
+    ADALOG_API void* cms_create(int width, int depth, uint32_t seed) {
         return new CMSCore(width, depth, seed);
     }
-    __declspec(dllexport) void cms_destroy(void* ptr) {
+    ADALOG_API void cms_destroy(void* ptr) {
         delete (CMSCore*)ptr;
     }
-    __declspec(dllexport) void cms_update(void* ptr, const char* key, int len, uint32_t count) {
+    ADALOG_API void cms_update(void* ptr, const char* key, int len, uint32_t count) {
         ((CMSCore*)ptr)->update(key, len, count);
     }
 
     // Bloom
-    __declspec(dllexport) void* bloom_create(int m, int k, uint32_t seed) {
+    ADALOG_API void* bloom_create(int m, int k, uint32_t seed) {
         return new BloomCore(m, k, seed);
     }
-    __declspec(dllexport) void bloom_destroy(void* ptr) {
+    ADALOG_API void bloom_destroy(void* ptr) {
         delete (BloomCore*)ptr;
     }
-    __declspec(dllexport) void bloom_add(void* ptr, const char* key, int len) {
+    ADALOG_API void bloom_add(void* ptr, const char* key, int len) {
         ((BloomCore*)ptr)->add(key, len);
     }
 
     // HLL
-    __declspec(dllexport) void* hll_create(int p, uint32_t seed) {
+    ADALOG_API void* hll_create(int p, uint32_t seed) {
         return new HLLCore(p, seed);
     }
-    __declspec(dllexport) void hll_destroy(void* ptr) {
+    ADALOG_API void hll_destroy(void* ptr) {
         delete (HLLCore*)ptr;
     }
-    __declspec(dllexport) void hll_add(void* ptr, const char* key, int len) {
+    ADALOG_API void hll_add(void* ptr, const char* key, int len) {
         ((HLLCore*)ptr)->add(key, len);
     }
 
     // Disjoint Stack
-    __declspec(dllexport) void* disjoint_create(int bf_m, int bf_k, int cms_w, int cms_d, int hll_p, uint32_t seed) {
+    ADALOG_API void* disjoint_create(int bf_m, int bf_k, int cms_w, int cms_d, int hll_p, uint32_t seed) {
         return new DisjointCore(bf_m, bf_k, cms_w, cms_d, hll_p, seed);
     }
-    __declspec(dllexport) void disjoint_destroy(void* ptr) {
+    ADALOG_API void disjoint_destroy(void* ptr) {
         delete (DisjointCore*)ptr;
     }
-    __declspec(dllexport) void disjoint_update(void* ptr, const char* key, int len, uint32_t count) {
+    ADALOG_API void disjoint_update(void* ptr, const char* key, int len, uint32_t count) {
         ((DisjointCore*)ptr)->update(key, len, count);
     }
 }

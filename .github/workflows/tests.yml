@@ -34,7 +34,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p core
-          g++ -O3 -mavx2 -shared -fPIC -Isrc/cpp/core -Isrc/cpp/hashing -Icore -o core/libadalog_core.so src/cpp/core/adalog_core.cpp
+          g++ -std=c++17 -O3 -mavx2 -shared -fPIC -Isrc/cpp/core -Isrc/cpp/hashing -Icore -o core/libadalog_core.so src/cpp/core/adalog_core.cpp
 
       - name: Run Unit Tests
         run: |
