@@ -1,114 +1,72 @@
 [
   {
-    "name": "Full AdaLog (Default)",
-    "config": {
-      "use_stash": true,
-      "use_cu": true,
-      "bits": 8,
-      "var": "A",
-      "hll": "coupled"
-    },
-    "width": 6682,
-    "mae": 0.5412762818148285,
+    "name": "AdaLog-Default (Decoupled)",
+    "width": 7232,
+    "mae": 0.6098726278135246,
+    "mae_std": 0.0039593238468255505,
+    "peak_error": 18,
+    "fpr": 0.73356,
+    "fpr_std": 0.004894940698766876,
+    "rse": 0.042425249460931805
+  },
+  {
+    "name": "Coupled HLL (m=w)",
+    "width": 6251,
+    "mae": 0.8322328724237547,
+    "mae_std": 0.010504696213145608,
     "peak_error": 19,
-    "fpr": 0.5589,
-    "rse": 0.03994240648380499,
-    "stashed_items": 64
+    "fpr": 0.8112600000000001,
+    "fpr_std": 0.006880600748965639,
+    "rse": 0.015225057795219809
   },
   {
     "name": "No Stash (-Stash)",
-    "config": {
-      "use_stash": false,
-      "use_cu": true,
-      "bits": 8,
-      "var": "A",
-      "hll": "coupled"
-    },
-    "width": 6898,
-    "mae": 15.708373293987458,
-    "peak_error": 79,
-    "fpr": 0.5496,
-    "rse": 0.01568719363009435,
-    "stashed_items": 0
+    "width": 8000,
+    "mae": 11.41818833705368,
+    "mae_std": 0.058274257101184675,
+    "peak_error": 34,
+    "fpr": 0.6634,
+    "fpr_std": 0.006198924637924432,
+    "rse": 0.042425249460931805
   },
   {
     "name": "No CU (-Conservative)",
-    "config": {
-      "use_stash": true,
-      "use_cu": false,
-      "bits": 8,
-      "var": "A",
-      "hll": "coupled"
-    },
-    "width": 6682,
-    "mae": 1.2787901143489486,
-    "peak_error": 33,
-    "fpr": 0.5589,
-    "rse": 0.03994240648380499,
-    "stashed_items": 64
+    "width": 7232,
+    "mae": 1.5201011304950505,
+    "mae_std": 0.016576255822791604,
+    "peak_error": 28,
+    "fpr": 0.73356,
+    "fpr_std": 0.004894940698766876,
+    "rse": 0.042425249460931805
   },
   {
     "name": "16-bit Counters",
-    "config": {
-      "use_stash": true,
-      "use_cu": true,
-      "bits": 16,
-      "var": "A",
-      "hll": "coupled"
-    },
-    "width": 3627,
-    "mae": 1.7113242345997788,
-    "peak_error": 365,
-    "fpr": 0.9108,
-    "rse": 0.004260077406344218,
-    "stashed_items": 64
+    "width": 3616,
+    "mae": 2.409421897329107,
+    "mae_std": 0.021132591404294736,
+    "peak_error": 49,
+    "fpr": 0.9781699999999999,
+    "fpr_std": 0.0023828321151287348,
+    "rse": 0.042425249460931805
   },
   {
     "name": "32-bit Counters",
-    "config": {
-      "use_stash": true,
-      "use_cu": true,
-      "bits": 32,
-      "var": "A",
-      "hll": "coupled"
-    },
-    "width": 1895,
-    "mae": 5.475396532644781,
-    "peak_error": 88,
-    "fpr": 0.9989,
-    "rse": 0.00605217415448365,
-    "stashed_items": 64
+    "width": 1808,
+    "mae": 7.533204411121342,
+    "mae_std": 0.06415925392130598,
+    "peak_error": 82,
+    "fpr": 0.9999,
+    "fpr_std": 0.0002160246899469334,
+    "rse": 0.042425249460931805
   },
   {
-    "name": "Membership Variant B",
-    "config": {
-      "use_stash": true,
-      "use_cu": true,
-      "bits": 8,
-      "var": "B",
-      "hll": "coupled"
-    },
-    "width": 6682,
-    "mae": 0.5412762818148285,
-    "peak_error": 19,
-    "fpr": 0.9991,
-    "rse": 0.03994240648380499,
-    "stashed_items": 64
-  },
-  {
-    "name": "HLL Decoupled (m=1024)",
-    "config": {
-      "use_stash": true,
-      "use_cu": true,
-      "bits": 8,
-      "var": "A",
-      "hll": "decoupled"
-    },
-    "width": 7744,
-    "mae": 0.3980818886019919,
-    "peak_error": 14,
-    "fpr": 0.4711,
-    "rse": 0.03959293385517083,
-    "stashed_items": 64
+    "name": "Membership Variant B (1-bit)",
+    "width": 7012,
+    "mae": 0.6567457794942198,
+    "mae_std": 0.011570663352579018,
+    "peak_error": 23,
+    "fpr": 0.99989,
+    "fpr_std": 0.00024244128727957906,
+    "rse": 0.042425249460931805
   }
 ]

@@ -46,6 +46,14 @@ Thumbs.db
 *.log
 *.zip
 
-# Research papers and manuscripts (excluded from public code repository)
+# Research papers and manuscripts (strictly excluded from public code repository)
 paper/
+research_paper_final/
+out/
 *.pdf
+*.docx
+*arch_diagram*
+scripts/generate_arch_diagram.py
+AdaLog_Sketch_Comprehensive_Technical_Report.md
+AdaLog_Sketch_Technical_Audit.md
+AdaLog_Sketch_Independent_Verification_Audit.md

@@ -26,60 +26,94 @@ if lib:
     lib.adalog_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
     lib.adalog_create.restype = ctypes.c_void_p
 
-lib.adalog_destroy.argtypes = [ctypes.c_void_p]
-lib.adalog_destroy.restype = None
+    lib.adalog_create_full.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
+    lib.adalog_create_full.restype = ctypes.c_void_p
 
-lib.adalog_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
-lib.adalog_update.restype = None
+    lib.adalog_destroy.argtypes = [ctypes.c_void_p]
+    lib.adalog_destroy.restype = None
 
-lib.adalog_estimate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-lib.adalog_estimate.restype = ctypes.c_uint32
+    lib.adalog_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
+    lib.adalog_update.restype = None
 
-lib.adalog_contains.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-lib.adalog_contains.restype = ctypes.c_bool
+    lib.adalog_estimate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.adalog_estimate.restype = ctypes.c_uint32
 
-lib.adalog_cardinality.argtypes = [ctypes.c_void_p]
-lib.adalog_cardinality.restype = ctypes.c_double
+    lib.adalog_contains.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.adalog_contains.restype = ctypes.c_bool
 
-# CMS prototypes
-lib.cms_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
-lib.cms_create.restype = ctypes.c_void_p
-lib.cms_destroy.argtypes = [ctypes.c_void_p]
-lib.cms_destroy.restype = None
-lib.cms_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
-lib.cms_update.restype = None
+    lib.adalog_cardinality.argtypes = [ctypes.c_void_p]
+    lib.adalog_cardinality.restype = ctypes.c_double
 
-# Bloom prototypes
-lib.bloom_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
-lib.bloom_create.restype = ctypes.c_void_p
-lib.bloom_destroy.argtypes = [ctypes.c_void_p]
-lib.bloom_destroy.restype = None
-lib.bloom_add.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-lib.bloom_add.restype = None
+    lib.adalog_top_k.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint32)]
+    lib.adalog_top_k.restype = ctypes.c_int
 
-# HLL prototypes
-lib.hll_create.argtypes = [ctypes.c_int, ctypes.c_uint32]
-lib.hll_create.restype = ctypes.c_void_p
-lib.hll_destroy.argtypes = [ctypes.c_void_p]
-lib.hll_destroy.restype = None
-lib.hll_add.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-lib.hll_add.restype = None
+    lib.adalog_get_stash_count.argtypes = [ctypes.c_void_p]
+    lib.adalog_get_stash_count.restype = ctypes.c_int
 
-# Disjoint prototypes
-lib.disjoint_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
-lib.disjoint_create.restype = ctypes.c_void_p
-lib.disjoint_destroy.argtypes = [ctypes.c_void_p]
-lib.disjoint_destroy.restype = None
-lib.disjoint_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
-lib.disjoint_update.restype = None
+    lib.adalog_get_stash_evictions.argtypes = [ctypes.c_void_p]
+    lib.adalog_get_stash_evictions.restype = ctypes.c_uint64
+
+    lib.adalog_get_stash_rejections.argtypes = [ctypes.c_void_p]
+    lib.adalog_get_stash_rejections.restype = ctypes.c_uint64
+
+    lib.adalog_get_memory_bytes.argtypes = [ctypes.c_void_p]
+    lib.adalog_get_memory_bytes.restype = ctypes.c_size_t
+
+    lib.adalog_hash128.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]
+    lib.adalog_hash128.restype = None
+
+    # CMS prototypes
+    lib.cms_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
+    lib.cms_create.restype = ctypes.c_void_p
+    lib.cms_destroy.argtypes = [ctypes.c_void_p]
+    lib.cms_destroy.restype = None
+    lib.cms_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
+    lib.cms_update.restype = None
+
+    # Bloom prototypes
+    lib.bloom_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
+    lib.bloom_create.restype = ctypes.c_void_p
+    lib.bloom_destroy.argtypes = [ctypes.c_void_p]
+    lib.bloom_destroy.restype = None
+    lib.bloom_add.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.bloom_add.restype = None
+
+    # HLL prototypes
+    lib.hll_create.argtypes = [ctypes.c_int, ctypes.c_uint32]
+    lib.hll_create.restype = ctypes.c_void_p
+    lib.hll_destroy.argtypes = [ctypes.c_void_p]
+    lib.hll_destroy.restype = None
+    lib.hll_add.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    lib.hll_add.restype = None
+
+    # Disjoint prototypes
+    lib.disjoint_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
+    lib.disjoint_create.restype = ctypes.c_void_p
+    lib.disjoint_destroy.argtypes = [ctypes.c_void_p]
+    lib.disjoint_destroy.restype = None
+    lib.disjoint_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
+    lib.disjoint_update.restype = None
 
 
 class CompiledAdaLog:
-    def __init__(self, width: int = 1024, depth: int = 4, counter_bits: int = 8, stash_capacity: int = 64, elephant_threshold: int = 20, seed: int = 42):
-        self._ptr = lib.adalog_create(width, depth, counter_bits, stash_capacity, elephant_threshold, seed)
+    def __init__(
+        self,
+        width: int = 1024,
+        depth: int = 4,
+        counter_bits: int = 8,
+        stash_capacity: int = 64,
+        elephant_threshold: int = 20,
+        hll_m: int = 1024,
+        seed: int = 42,
+    ):
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
+        self._ptr = lib.adalog_create_full(
+            width, depth, counter_bits, stash_capacity, elephant_threshold, hll_m, seed
+        )
 
     def __del__(self):
-        if hasattr(self, "_ptr") and self._ptr:
+        if hasattr(self, "_ptr") and self._ptr and lib:
             lib.adalog_destroy(self._ptr)
             self._ptr = None
 
@@ -112,13 +146,41 @@ class CompiledAdaLog:
     def cardinality(self) -> float:
         return float(lib.adalog_cardinality(self._ptr))
 
+    def top_k(self, k: int) -> list[tuple[int, int]]:
+        out_hashes = (ctypes.c_uint64 * k)()
+        out_counts = (ctypes.c_uint32 * k)()
+        n = lib.adalog_top_k(self._ptr, k, out_hashes, out_counts)
+        return [(int(out_hashes[i]), int(out_counts[i])) for i in range(n)]
+
+    def stash_stats(self) -> dict[str, int]:
+        return {
+            "count": int(lib.adalog_get_stash_count(self._ptr)),
+            "evictions": int(lib.adalog_get_stash_evictions(self._ptr)),
+            "rejections": int(lib.adalog_get_stash_rejections(self._ptr)),
+        }
+
+    def memory_bytes(self) -> int:
+        return int(lib.adalog_get_memory_bytes(self._ptr))
+
+    @staticmethod
+    def hash128(key: str | bytes, seed: int = 42) -> tuple[int, int]:
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
+        kb = key.encode("utf-8") if isinstance(key, str) else key
+        h1 = ctypes.c_uint64()
+        h2 = ctypes.c_uint64()
+        lib.adalog_hash128(kb, len(kb), seed, ctypes.byref(h1), ctypes.byref(h2))
+        return (int(h1.value), int(h2.value))
+
 
 class CompiledCMS:
     def __init__(self, width: int = 1024, depth: int = 4, seed: int = 42):
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
         self._ptr = lib.cms_create(width, depth, seed)
 
     def __del__(self):
-        if hasattr(self, "_ptr") and self._ptr:
+        if hasattr(self, "_ptr") and self._ptr and lib:
             lib.cms_destroy(self._ptr)
             self._ptr = None
 
@@ -129,10 +191,12 @@ class CompiledCMS:
 
 class CompiledBloom:
     def __init__(self, m_bits: int = 8192, k_hashes: int = 7, seed: int = 42):
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
         self._ptr = lib.bloom_create(m_bits, k_hashes, seed)
 
     def __del__(self):
-        if hasattr(self, "_ptr") and self._ptr:
+        if hasattr(self, "_ptr") and self._ptr and lib:
             lib.bloom_destroy(self._ptr)
             self._ptr = None
 
@@ -143,10 +207,12 @@ class CompiledBloom:
 
 class CompiledHLL:
     def __init__(self, p: int = 10, seed: int = 42):
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
         self._ptr = lib.hll_create(p, seed)
 
     def __del__(self):
-        if hasattr(self, "_ptr") and self._ptr:
+        if hasattr(self, "_ptr") and self._ptr and lib:
             lib.hll_destroy(self._ptr)
             self._ptr = None
 
@@ -157,10 +223,12 @@ class CompiledHLL:
 
 class CompiledDisjoint:
     def __init__(self, bf_m: int = 8192, bf_k: int = 7, cms_w: int = 1024, cms_d: int = 4, hll_p: int = 10, seed: int = 42):
+        if not lib:
+            raise RuntimeError("adalog_core.dll is not loaded")
         self._ptr = lib.disjoint_create(bf_m, bf_k, cms_w, cms_d, hll_p, seed)
 
     def __del__(self):
-        if hasattr(self, "_ptr") and self._ptr:
+        if hasattr(self, "_ptr") and self._ptr and lib:
             lib.disjoint_destroy(self._ptr)
             self._ptr = None
 

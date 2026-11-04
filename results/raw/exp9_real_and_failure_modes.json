@@ -1,0 +1,32 @@
+{
+  "gutenberg_adalog_tau10": {
+    "mae": 3.173824130879346,
+    "occupancy": 128
+  },
+  "gutenberg_adalog_tau15": {
+    "mae": 3.175067163879867,
+    "occupancy": 98
+  },
+  "gutenberg_disjoint_stash": {
+    "mae": 4.529652351738242
+  },
+  "gutenberg_disjoint_16bit": {
+    "mae": 12.549861662456394
+  },
+  "gutenberg_elastic": {
+    "mae": 11.852600344841413
+  },
+  "gutenberg_augmented": {
+    "mae": 11.798508360399374
+  },
+  "caida_adalog": {
+    "mae": 13.46574781100168,
+    "occupancy": 128
+  },
+  "caida_disjoint_stash": {
+    "mae": 17.02441706394197
+  },
+  "caida_elastic": {
+    "mae": 34.92696053656071
+  }
+}
