@@ -8,7 +8,7 @@
 #include "hash_xxh3.h"
 
 // ============================================================================
-// 1. COMPILED ADALOG CORE
+// 1. RE-ENGINEERED ADALOG CORE (C++17)
 // ============================================================================
 
 struct StashItem {
@@ -24,6 +24,7 @@ public:
     int counter_bits;
     int max_val;
     uint32_t seed;
+    uint64_t total_volume;
     
     uint8_t* table8;
     uint16_t* table16;
@@ -37,20 +38,25 @@ public:
     bool use_stash;
     int stash_cap;
     uint32_t tau;
-    static const int STASH_TABLE_SIZE = 128;
-    uint64_t stash_keys[STASH_TABLE_SIZE];
-    uint32_t stash_base[STASH_TABLE_SIZE];
-    uint32_t stash_exact[STASH_TABLE_SIZE];
+    int stash_table_size;
+    uint64_t stash_mask;
+    uint64_t* stash_keys;
+    uint32_t* stash_base;
+    uint32_t* stash_exact;
     int stash_count;
+    uint64_t stash_insertions;
+    uint64_t stash_evictions;
+    uint64_t stash_rejections;
 
     AdaLogCore(int w, int d, int bits, int scap, int thresh, uint32_t s)
-        : width(w), depth(d), counter_bits(bits), seed(s), use_stash(scap > 0), stash_cap(scap), tau(thresh)
-    {
-        memset(stash_keys, 0, sizeof(stash_keys));
-        memset(stash_base, 0, sizeof(stash_base));
-        memset(stash_exact, 0, sizeof(stash_exact));
-        stash_count = 0;
+        : AdaLogCore(w, d, bits, scap, thresh, 1024, s) {}
 
+    AdaLogCore(int w, int d, int bits, int scap, int thresh, int hll_regs, uint32_t s)
+        : width(w), depth(d), counter_bits(bits), seed(s), total_volume(0),
+          use_stash(scap > 0), stash_cap(scap), tau(thresh),
+          stash_count(0), stash_insertions(0), stash_evictions(0), stash_rejections(0)
+    {
+        // 1. Configure Counter Matrix
         if (bits == 8) {
             max_val = 255;
             table8 = (uint8_t*)calloc(w * d, sizeof(uint8_t));
@@ -68,8 +74,29 @@ public:
             table32 = (uint32_t*)calloc(w * d, sizeof(uint32_t));
         }
 
-        hll_m = w;
-        hll_bytes = (hll_m * 6 + 7) / 8;
+        // 2. Configure Stash (Dynamic Configurable Capacity)
+        if (use_stash && scap > 0) {
+            // Find power of 2 >= scap
+            int tsize = 16;
+            while (tsize < scap) {
+                tsize <<= 1;
+            }
+            stash_table_size = tsize;
+            stash_mask = (uint64_t)(stash_table_size - 1);
+            stash_keys = (uint64_t*)calloc(stash_table_size, sizeof(uint64_t));
+            stash_base = (uint32_t*)calloc(stash_table_size, sizeof(uint32_t));
+            stash_exact = (uint32_t*)calloc(stash_table_size, sizeof(uint32_t));
+        } else {
+            stash_table_size = 0;
+            stash_mask = 0;
+            stash_keys = nullptr;
+            stash_base = nullptr;
+            stash_exact = nullptr;
+        }
+
+        // 3. Configure HyperLogLog Subsketch (Decoupled from width w: default 1024 registers)
+        hll_m = (hll_regs > 0) ? hll_regs : 1024;
+        hll_bytes = (hll_m * 6 + 7) / 8; // Exactly 768 bytes for m=1024
         hll_reg = (uint8_t*)calloc(hll_bytes, sizeof(uint8_t));
 
         if (hll_m >= 128) hll_alpha = 0.7213 / (1.0 + 1.079 / hll_m);
@@ -78,11 +105,16 @@ public:
         else hll_alpha = 0.673;
     }
 
+
+
     ~AdaLogCore() {
         if (table8) free(table8);
         if (table16) free(table16);
         if (table32) free(table32);
         if (hll_reg) free(hll_reg);
+        if (stash_keys) free(stash_keys);
+        if (stash_base) free(stash_base);
+        if (stash_exact) free(stash_exact);
     }
 
     inline uint32_t get_cell(int row, int col) const {
@@ -127,30 +159,48 @@ public:
         }
     }
 
+    inline int find_stash_slot(uint64_t key_hash) const {
+        if (!use_stash || stash_count == 0 || stash_table_size <= 0) return -1;
+        int base_slot = (int)(key_hash & stash_mask);
+        #pragma GCC unroll 8
+        for (int p = 0; p < 8; p++) {
+            int slot = (base_slot + p) & (int)stash_mask;
+            if (stash_keys[slot] == key_hash) return slot;
+            if (stash_keys[slot] == 0) return -1;
+        }
+        return -1;
+    }
     void update(const char* key, int len, uint32_t count) {
+        if (count <= 0) return;
+        total_volume += count;
+
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        if (use_stash && stash_count > 0) {
-            int slot1 = h[0] & (STASH_TABLE_SIZE - 1);
+        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
+        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+
+        // --- Fast Path: 2-Choice Stash Hit ---
+        if (use_stash && stash_count > 0 && stash_table_size > 0) {
+            int slot1 = (int)(h1 & stash_mask);
             if (stash_keys[slot1] == h[0]) {
                 stash_exact[slot1] += count;
                 return;
             }
-            int slot2 = (slot1 + 1) & (STASH_TABLE_SIZE - 1);
+            int slot2 = (int)(h2 & stash_mask);
+            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
             if (stash_keys[slot2] == h[0]) {
                 stash_exact[slot2] += count;
                 return;
             }
         }
 
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
-
-        int col0 = h1 % width;
+        // --- HLL Cardinality Update ---
+        int hll_reg_idx = (int)(h1 % hll_m);
         int clz = (h[1] == 0) ? 64 : __builtin_clzll(h[1]);
-        update_hll(col0, clz + 1);
+        update_hll(hll_reg_idx, clz + 1);
 
+        // --- Matrix Conservative Update ---
         uint32_t v_min = 0xFFFFFFFF;
         uint32_t indices[16];
         for (int j = 0; j < depth; j++) {
@@ -167,37 +217,52 @@ public:
             }
         }
 
-        if (use_stash && v_target >= tau) {
-            int slot1 = h[0] & (STASH_TABLE_SIZE - 1);
-            int slot2 = (slot1 + 1) & (STASH_TABLE_SIZE - 1);
+        // --- Stash Admission & Eviction ---
+        if (use_stash && stash_table_size > 0 && v_target >= tau) {
+            int slot1 = (int)(h1 & stash_mask);
+            int slot2 = (int)(h2 & stash_mask);
+            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
 
             if (stash_keys[slot1] == h[0] || stash_keys[slot2] == h[0]) {
-                // Already stashed
-            } else if (stash_keys[slot1] == 0) {
+                return;
+            }
+
+            if (stash_keys[slot1] == 0) {
                 stash_keys[slot1] = h[0];
                 stash_base[slot1] = v_target;
                 stash_exact[slot1] = 0;
                 stash_count++;
+                stash_insertions++;
             } else if (stash_keys[slot2] == 0) {
                 stash_keys[slot2] = h[0];
                 stash_base[slot2] = v_target;
                 stash_exact[slot2] = 0;
                 stash_count++;
+                stash_insertions++;
             } else {
+                // 2-choice eviction policy: compare slot1 vs slot2
                 int evict_slot = (stash_base[slot1] + stash_exact[slot1] <= stash_base[slot2] + stash_exact[slot2]) ? slot1 : slot2;
                 uint32_t min_tot = stash_base[evict_slot] + stash_exact[evict_slot];
+
                 if (v_target > min_tot) {
+                    // Evict min candidate and write back to matrix
                     uint64_t evict_h = stash_keys[evict_slot];
                     uint32_t eh1 = (uint32_t)(evict_h & 0xFFFFFFFF);
                     uint32_t eh2 = (uint32_t)((evict_h >> 32) & 0xFFFFFFFF) | 1;
+                    uint32_t wb_val = (min_tot > (uint32_t)max_val) ? max_val : min_tot;
+
                     for (int j = 0; j < depth; j++) {
                         uint32_t idx = (eh1 + j * eh2) % width;
                         uint32_t cur = get_cell(j, idx);
-                        if (min_tot > cur) set_cell(j, idx, min_tot);
+                        if (wb_val > cur) set_cell(j, idx, wb_val);
                     }
+
                     stash_keys[evict_slot] = h[0];
                     stash_base[evict_slot] = v_target;
                     stash_exact[evict_slot] = 0;
+                    stash_evictions++;
+                } else {
+                    stash_rejections++;
                 }
             }
         }
@@ -207,15 +272,16 @@ public:
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        if (use_stash && stash_count > 0) {
-            int slot1 = h[0] & (STASH_TABLE_SIZE - 1);
-            if (stash_keys[slot1] == h[0]) return stash_base[slot1] + stash_exact[slot1];
-            int slot2 = (slot1 + 1) & (STASH_TABLE_SIZE - 1);
-            if (stash_keys[slot2] == h[0]) return stash_base[slot2] + stash_exact[slot2];
-        }
-
         uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+
+        if (use_stash && stash_count > 0 && stash_table_size > 0) {
+            int slot1 = (int)(h1 & stash_mask);
+            if (stash_keys[slot1] == h[0]) return stash_base[slot1] + stash_exact[slot1];
+            int slot2 = (int)(h2 & stash_mask);
+            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
+            if (stash_keys[slot2] == h[0]) return stash_base[slot2] + stash_exact[slot2];
+        }
 
         uint32_t v_min = 0xFFFFFFFF;
         for (int j = 0; j < depth; j++) {
@@ -230,19 +296,23 @@ public:
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        if (use_stash && stash_count > 0) {
-            int slot1 = h[0] & (STASH_TABLE_SIZE - 1);
-            if (stash_keys[slot1] == h[0]) return true;
-            int slot2 = (slot1 + 1) & (STASH_TABLE_SIZE - 1);
-            if (stash_keys[slot2] == h[0]) return true;
-        }
-
         uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
 
+        if (use_stash && stash_count > 0 && stash_table_size > 0) {
+            int slot1 = (int)(h1 & stash_mask);
+            if (stash_keys[slot1] == h[0]) return true;
+            int slot2 = (int)(h2 & stash_mask);
+            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
+            if (stash_keys[slot2] == h[0]) return true;
+        }
+
+        uint32_t theta = (uint32_t)std::min(254.0, floor(log((double)total_volume / (double)width + 1.0) + 1.0));
+        if (theta < 1) theta = 1;
+
         for (int j = 0; j < depth; j++) {
             uint32_t idx = (h1 + j * h2) % width;
-            if (get_cell(j, idx) == 0) return false;
+            if (get_cell(j, idx) < theta) return false;
         }
         return true;
     }
@@ -272,6 +342,36 @@ public:
             if (v_zeros > 0) return (double)hll_m * log((double)hll_m / (double)v_zeros);
         }
         return raw;
+    }
+
+    // Top-k heavy hitter extraction directly from stash
+    int get_top_k(int k, uint64_t* out_hashes, uint32_t* out_counts) const {
+        if (!use_stash || stash_count == 0 || k <= 0 || stash_table_size == 0) return 0;
+
+        std::vector<std::pair<uint32_t, uint64_t>> candidates;
+        candidates.reserve(stash_count);
+
+        for (int i = 0; i < stash_table_size; i++) {
+            if (stash_keys[i] != 0) {
+                candidates.push_back({stash_base[i] + stash_exact[i], stash_keys[i]});
+            }
+        }
+
+        std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<uint32_t, uint64_t>>());
+        int ret_count = std::min((int)candidates.size(), k);
+        for (int i = 0; i < ret_count; i++) {
+            out_counts[i] = candidates[i].first;
+            out_hashes[i] = candidates[i].second;
+        }
+        return ret_count;
+    }
+
+    size_t get_memory_bytes() const {
+        size_t mat_b = (size_t)width * depth * (counter_bits / 8);
+        size_t hll_b = (size_t)hll_bytes;
+        size_t st_b = (use_stash && stash_table_size > 0) ? 
+            ((size_t)stash_table_size * (sizeof(uint64_t) + 2 * sizeof(uint32_t))) : 0;
+        return mat_b + hll_b + st_b;
     }
 };
 
@@ -338,12 +438,11 @@ class BloomCore {
 public:
     int m_bits;
     int k_hashes;
-    uint8_t* bit_array;
     uint32_t seed;
+    uint8_t* bit_array;
 
     BloomCore(int m, int k, uint32_t s) : m_bits(m), k_hashes(k), seed(s) {
-        int bytes = (m + 7) / 8;
-        bit_array = (uint8_t*)calloc(bytes, sizeof(uint8_t));
+        bit_array = (uint8_t*)calloc((m + 7) / 8, sizeof(uint8_t));
     }
     ~BloomCore() { free(bit_array); }
 
@@ -374,29 +473,31 @@ public:
 };
 
 // ============================================================================
-// 4. COMPILED HYPERLOGLOG
+// 4. COMPILED HYPERLOGLOG (6-BIT REGISTERS)
 // ============================================================================
 
 class HLLCore {
 public:
     int p;
     int m;
+    uint32_t seed;
     uint8_t* registers;
     double alpha;
-    uint32_t seed;
 
-    HLLCore(int prec, uint32_t s) : p(prec), m(1 << prec), seed(s) {
+    HLLCore(int precision, uint32_t s) : p(precision), seed(s) {
+        m = 1 << p;
         registers = (uint8_t*)calloc(m, sizeof(uint8_t));
         if (m >= 128) alpha = 0.7213 / (1.0 + 1.079 / m);
         else if (m >= 64) alpha = 0.709;
-        else alpha = 0.697;
+        else if (m >= 32) alpha = 0.697;
+        else alpha = 0.673;
     }
     ~HLLCore() { free(registers); }
 
     void add(const char* key, int len) {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        int idx = h[0] & (m - 1);
+        int idx = (int)(h[0] & (m - 1));
         int clz = (h[1] == 0) ? 64 : __builtin_clzll(h[1]);
         uint8_t rank = (uint8_t)(clz + 1);
         if (rank > registers[idx]) registers[idx] = rank;
@@ -416,7 +517,7 @@ public:
 };
 
 // ============================================================================
-// 5. COMPILED DISJOINT STACK (RUNS BF + CMS-CU + HLL SIMULTANEOUSLY)
+// 5. COMPILED DISJOINT STACK
 // ============================================================================
 
 class DisjointCore {
@@ -436,14 +537,19 @@ public:
 };
 
 // ============================================================================
-// EXPORTED C API
+// EXPORTED C API FOR BINDINGS
 // ============================================================================
 
 extern "C" {
     __declspec(dllexport) void* adalog_create(int width, int depth, int bits, int scap, int thresh, uint32_t seed) {
-        return new AdaLogCore(width, depth, bits, scap, thresh, seed);
+        return new AdaLogCore(width, depth, bits, scap, thresh, 1024, seed);
     }
-    __declspec(dllexport) void adalog_destroy(void* ptr) { delete (AdaLogCore*)ptr; }
+    __declspec(dllexport) void* adalog_create_full(int width, int depth, int bits, int scap, int thresh, int hll_m, uint32_t seed) {
+        return new AdaLogCore(width, depth, bits, scap, thresh, hll_m, seed);
+    }
+    __declspec(dllexport) void adalog_destroy(void* ptr) {
+        delete (AdaLogCore*)ptr;
+    }
     __declspec(dllexport) void adalog_update(void* ptr, const char* key, int len, uint32_t count) {
         ((AdaLogCore*)ptr)->update(key, len, count);
     }
@@ -456,12 +562,35 @@ extern "C" {
     __declspec(dllexport) double adalog_cardinality(void* ptr) {
         return ((AdaLogCore*)ptr)->cardinality();
     }
+    __declspec(dllexport) int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint32_t* out_counts) {
+        return ((AdaLogCore*)ptr)->get_top_k(k, out_hashes, out_counts);
+    }
+    __declspec(dllexport) int adalog_get_stash_count(void* ptr) {
+        return ((AdaLogCore*)ptr)->stash_count;
+    }
+    __declspec(dllexport) uint64_t adalog_get_stash_evictions(void* ptr) {
+        return ((AdaLogCore*)ptr)->stash_evictions;
+    }
+    __declspec(dllexport) uint64_t adalog_get_stash_rejections(void* ptr) {
+        return ((AdaLogCore*)ptr)->stash_rejections;
+    }
+    __declspec(dllexport) size_t adalog_get_memory_bytes(void* ptr) {
+        return ((AdaLogCore*)ptr)->get_memory_bytes();
+    }
+    __declspec(dllexport) void adalog_hash128(const char* key, int len, uint32_t seed, uint64_t* out_h1, uint64_t* out_h2) {
+        uint64_t h[2];
+        murmur3_128(key, len, seed, h);
+        if (out_h1) *out_h1 = h[0];
+        if (out_h2) *out_h2 = h[1];
+    }
 
     // CMS
     __declspec(dllexport) void* cms_create(int width, int depth, uint32_t seed) {
         return new CMSCore(width, depth, seed);
     }
-    __declspec(dllexport) void cms_destroy(void* ptr) { delete (CMSCore*)ptr; }
+    __declspec(dllexport) void cms_destroy(void* ptr) {
+        delete (CMSCore*)ptr;
+    }
     __declspec(dllexport) void cms_update(void* ptr, const char* key, int len, uint32_t count) {
         ((CMSCore*)ptr)->update(key, len, count);
     }
@@ -470,7 +599,9 @@ extern "C" {
     __declspec(dllexport) void* bloom_create(int m, int k, uint32_t seed) {
         return new BloomCore(m, k, seed);
     }
-    __declspec(dllexport) void bloom_destroy(void* ptr) { delete (BloomCore*)ptr; }
+    __declspec(dllexport) void bloom_destroy(void* ptr) {
+        delete (BloomCore*)ptr;
+    }
     __declspec(dllexport) void bloom_add(void* ptr, const char* key, int len) {
         ((BloomCore*)ptr)->add(key, len);
     }
@@ -479,7 +610,9 @@ extern "C" {
     __declspec(dllexport) void* hll_create(int p, uint32_t seed) {
         return new HLLCore(p, seed);
     }
-    __declspec(dllexport) void hll_destroy(void* ptr) { delete (HLLCore*)ptr; }
+    __declspec(dllexport) void hll_destroy(void* ptr) {
+        delete (HLLCore*)ptr;
+    }
     __declspec(dllexport) void hll_add(void* ptr, const char* key, int len) {
         ((HLLCore*)ptr)->add(key, len);
     }
@@ -488,7 +621,9 @@ extern "C" {
     __declspec(dllexport) void* disjoint_create(int bf_m, int bf_k, int cms_w, int cms_d, int hll_p, uint32_t seed) {
         return new DisjointCore(bf_m, bf_k, cms_w, cms_d, hll_p, seed);
     }
-    __declspec(dllexport) void disjoint_destroy(void* ptr) { delete (DisjointCore*)ptr; }
+    __declspec(dllexport) void disjoint_destroy(void* ptr) {
+        delete (DisjointCore*)ptr;
+    }
     __declspec(dllexport) void disjoint_update(void* ptr, const char* key, int len, uint32_t count) {
         ((DisjointCore*)ptr)->update(key, len, count);
     }

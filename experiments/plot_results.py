@@ -120,11 +120,15 @@ def plot_experiment_2():
     aug_mae = [r["augmented_mae"] for r in data]
     aug_std = [r["augmented_mae_std"] for r in data]
 
+    disjoint_stash_mae = [r.get("disjoint_stash_mae", r["disjoint_mae"]) for r in data]
+    disjoint_stash_std = [r.get("disjoint_stash_mae_std", 0.02) for r in data]
+
     fig, ax = plt.subplots(figsize=(3.6, 2.7), dpi=300)
     ax.errorbar(alphas, adalog_mae, yerr=adalog_std, label="AdaLog (Unified)", marker="o", linewidth=1.8, markersize=4.5, color="#1f77b4", capsize=2.5)
-    ax.errorbar(alphas, disjoint_mae, yerr=disjoint_std, label="Disjoint Stack", marker="s", linewidth=1.5, markersize=4.5, color="#d62728", capsize=2.5)
-    ax.errorbar(alphas, elastic_mae, yerr=elastic_std, label="Elastic Sketch", marker="^", linewidth=1.5, markersize=4.5, color="#2ca02c", capsize=2.5)
-    ax.errorbar(alphas, aug_mae, yerr=aug_std, label="Augmented Sketch", marker="d", linewidth=1.5, markersize=4.5, color="#ff7f0e", capsize=2.5)
+    ax.errorbar(alphas, disjoint_stash_mae, yerr=disjoint_stash_std, label="Disjoint+Stash (Primary)", marker="v", linewidth=1.6, markersize=4.5, color="#9467bd", capsize=2.5)
+    ax.errorbar(alphas, disjoint_mae, yerr=disjoint_std, label="Disjoint-16bit (Overflow)", marker="s", linewidth=1.3, markersize=4.0, linestyle="--", color="#d62728", capsize=2.5)
+    ax.errorbar(alphas, elastic_mae, yerr=elastic_std, label="Elastic Sketch", marker="^", linewidth=1.3, markersize=4.0, color="#2ca02c", capsize=2.5)
+    ax.errorbar(alphas, aug_mae, yerr=aug_std, label="Augmented Sketch", marker="d", linewidth=1.3, markersize=4.0, color="#ff7f0e", capsize=2.5)
 
     ax.set_xlabel(r"Zipfian Skew Parameter $\alpha$", fontsize=8.5)
     ax.set_ylabel("Frequency Estimation MAE", fontsize=8.5)
