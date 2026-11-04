@@ -40,6 +40,9 @@ class ElephantStash:
     def __len__(self) -> int:
         return len(self.entries)
 
+    def __contains__(self, key: str) -> bool:
+        return self.contains(key)
+
     def contains(self, key: str) -> bool:
         return key in self.entries
 

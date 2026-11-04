@@ -12,8 +12,16 @@ CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CORE_DIR, "..", "..")) if "src" in CORE_DIR else os.path.abspath(os.path.join(CORE_DIR, ".."))
 
 def _find_library() -> str | None:
-    exts = [".dll", ".so", ".dylib"]
-    names = ["adalog_core", "libadalog_core"]
+    if sys.platform.startswith("win"):
+        exts = [".dll"]
+        names = ["adalog_core"]
+    elif sys.platform.startswith("darwin"):
+        exts = [".dylib", ".so"]
+        names = ["libadalog_core", "adalog_core"]
+    else:
+        exts = [".so"]
+        names = ["libadalog_core", "adalog_core"]
+
     search_dirs = [
         CORE_DIR,
         os.path.join(PROJECT_ROOT, "core"),
@@ -31,8 +39,13 @@ def _find_library() -> str | None:
 
 DLL_PATH = _find_library()
 
+try:
+    lib = ctypes.CDLL(DLL_PATH) if DLL_PATH else None
+except Exception:
+    lib = None
+
 def is_dll_available() -> bool:
-    return DLL_PATH is not None and os.path.exists(DLL_PATH)
+    return lib is not None
 
 try:
     lib = ctypes.CDLL(DLL_PATH) if DLL_PATH else None
