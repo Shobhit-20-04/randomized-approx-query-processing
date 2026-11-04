@@ -14,11 +14,34 @@ except ImportError:
     HAS_XXHASH = False
 
 
-def hash128(key: str | bytes, seed: int = 42) -> Tuple[int, int]:
+def murmur3_hash128(key: str | bytes, seed: int = 42) -> Tuple[int, int]:
+    """
+    Computes 128-bit MurmurHash3 digest matching the native C++ adalog_core kernel bit-for-bit.
+    """
+    try:
+        from core.bindings import CompiledAdaLog, is_dll_available
+        if is_dll_available():
+            return CompiledAdaLog.hash128(key, seed)
+    except Exception:
+        pass
+
+    # Fallback to Blake2b if DLL is not available
+    if isinstance(key, str):
+        kb = key.encode("utf-8")
+    else:
+        kb = key
+    digest = hashlib.blake2b(kb, digest_size=16, person=seed.to_bytes(4, "little")).digest()
+    return int.from_bytes(digest[:8], "little"), int.from_bytes(digest[8:], "little")
+
+
+def hash128(key: str | bytes, seed: int = 42, algorithm: str = "xxh3") -> Tuple[int, int]:
     """
     Returns (h_low, h_high) as two 64-bit unsigned integers.
-    Uses xxh3_128 if available, else blake2b.
+    Uses xxh3_128 if available and algorithm == 'xxh3', or murmur3_hash128 if algorithm == 'murmur3'.
     """
+    if algorithm == "murmur3":
+        return murmur3_hash128(key, seed)
+
     if isinstance(key, str):
         key_bytes = key.encode("utf-8")
     else:
@@ -30,10 +53,7 @@ def hash128(key: str | bytes, seed: int = 42) -> Tuple[int, int]:
         h_high = (val >> 64) & 0xFFFFFFFFFFFFFFFF
         return h_low, h_high
     else:
-        digest = hashlib.blake2b(key_bytes, digest_size=16, person=seed.to_bytes(4, "little")).digest()
-        h_low = int.from_bytes(digest[:8], "little")
-        h_high = int.from_bytes(digest[8:], "little")
-        return h_low, h_high
+        return murmur3_hash128(key, seed)
 
 
 def get_matrix_indices(h_low: int, d: int, w: int) -> list[int]:

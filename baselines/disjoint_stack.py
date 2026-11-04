@@ -120,7 +120,8 @@ class DisjointStashStack:
         self.stash_tau = stash_tau
         self.counter_bits = cms_counter_bits
 
-        stash_bytes = stash_capacity * 16
+        # Accurate entry size accounting: 16-byte key hash + 4-byte baseline + 4-byte exact count = 24 bytes/entry
+        stash_bytes = stash_capacity * 24
         hll_bytes = 768  # 1024 registers packed at 6 bits
         rem_bytes = max(512, total_memory_bytes - stash_bytes - hll_bytes)
 
