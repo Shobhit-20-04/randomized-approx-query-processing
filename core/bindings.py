@@ -9,15 +9,33 @@ import os
 import sys
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
-DLL_PATH = os.path.join(CORE_DIR, "adalog_core.dll")
+PROJECT_ROOT = os.path.abspath(os.path.join(CORE_DIR, "..", "..")) if "src" in CORE_DIR else os.path.abspath(os.path.join(CORE_DIR, ".."))
 
+def _find_library() -> str | None:
+    exts = [".dll", ".so", ".dylib"]
+    names = ["adalog_core", "libadalog_core"]
+    search_dirs = [
+        CORE_DIR,
+        os.path.join(PROJECT_ROOT, "core"),
+        os.path.join(PROJECT_ROOT, "build"),
+        os.path.join(PROJECT_ROOT, "src", "cpp", "core"),
+        os.path.join(PROJECT_ROOT, "src", "cpp", "bindings"),
+    ]
+    for d in search_dirs:
+        for name in names:
+            for ext in exts:
+                candidate = os.path.join(d, f"{name}{ext}")
+                if os.path.isfile(candidate):
+                    return candidate
+    return None
+
+DLL_PATH = _find_library()
 
 def is_dll_available() -> bool:
-    return os.path.exists(DLL_PATH)
-
+    return DLL_PATH is not None and os.path.exists(DLL_PATH)
 
 try:
-    lib = ctypes.CDLL(DLL_PATH) if os.path.exists(DLL_PATH) else None
+    lib = ctypes.CDLL(DLL_PATH) if DLL_PATH else None
 except Exception:
     lib = None
 

@@ -49,6 +49,7 @@ Thumbs.db
 # Research papers and manuscripts (strictly excluded from public code repository)
 paper/
 research_paper_final/
+paper_local/
 out/
 *.pdf
 *.docx

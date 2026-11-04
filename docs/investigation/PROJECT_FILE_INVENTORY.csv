@@ -1,0 +1,61 @@
+file_path,file_type,purpose,version_status,file_size_bytes,last_modified,importance,dependencies
+core/adalog_core.cpp,Source (C++),"Core AdaLog C++17 engine: matrix, 2-choice stash, packed HLL, update, estimate, contains, top-k",Current / Authoritative,22859,2026-11-05 00:27:14,Critical,core/hash_xxh3.h
+core/hash_xxh3.h,Header (C++),MurmurHash3_128 implementation (named hash_xxh3.h historically),Current / Authoritative,2474,2026-10-28 21:29:43,Critical,core/adalog_core.cpp
+core/bench_core.cpp,Source (C++),Tight-loop latency and throughput benchmark driver for C++ engine,Current / Benchmark,9813,2026-11-05 00:27:14,High,core/adalog_core.cpp
+core/bindings.py,Source (Python/ctypes),ctypes wrapper interfacing Python with compiled adalog_core.dll,Current / Binding,9011,2026-11-05 00:27:14,High,core/adalog_core.dll
+core/adalog_core.dll,Binary (DLL),"Compiled Windows shared library for C++ engine (-static, AVX2)",Current / Binary,674504,2026-11-05 00:27:14,High,core/adalog_core.cpp
+core/bench_core.exe,Binary (EXE),Compiled standalone benchmark binary producing 21.97 Mops/s,Current / Binary,3069652,2026-11-05 00:27:14,High,core/bench_core.cpp
+adalog/sketch.py,Source (Python),"AdaLogSketch class orchestrator: unified 128-bit hashing, CU, dynamic AMQ, HLL, stash",Current / Reference,11174,2026-11-05 00:27:14,Critical,"adalog/stash.py, adalog/hll_packed.py"
+adalog/stash.py,Source (Python),"ElephantStash class: dict-based stash, tau threshold, saturated elephant retention",Current / Reference,3715,2026-10-28 21:39:31,Critical,adalog/hash_utils.py
+adalog/hll_packed.py,Source (Python),Packed 6-bit HyperLogLog registers and Flajolet cardinality estimator,Current / Reference,2418,2026-10-28 21:28:10,High,adalog/sketch.py
+adalog/hash_utils.py,Source (Python),"xxhash/blake2b and murmur3_128 Python wrappers, Carter-Wegman row index generator",Current / Utility,2656,2026-11-05 00:27:14,High,adalog/sketch.py
+adalog/compression.py,Source (Python),LightRanger bit-plane residual coding and delta serialization,Current / Feature,4234,2026-10-28 21:28:26,Medium,adalog/sketch.py
+baselines/disjoint_stack.py,Source (Python),DisjointStack & DisjointStashStack models (calibrated to strict 32KB budget),Current / Baseline,7058,2026-11-05 00:27:14,Critical,"baselines/count_min_sketch.py, baselines/bloom_filter.py"
+baselines/count_min_sketch.py,Source (Python),"Count-Min Sketch with Conservative Update (8, 16, 32-bit counters)",Current / Baseline,3996,2026-11-05 00:27:14,High,None
+baselines/bloom_filter.py,Source (Python),Standard bit-array Bloom filter with Kirsch-Mitzenmacher double hashing,Current / Baseline,2613,2026-10-28 21:24:16,High,None
+baselines/hyperloglog.py,Source (Python),Standalone reference 6-bit packed HyperLogLog cardinality estimator,Current / Baseline,3867,2026-10-28 21:26:06,High,None
+baselines/elastic_sketch.py,Source (Python),Elastic Sketch baseline with heavy/light O(1) voting partition,Current / Baseline,4659,2026-11-05 00:27:14,Medium,None
+baselines/augmented_sketch.py,Source (Python),Augmented Sketch baseline with pre-filter + CMS,Current / Baseline,3282,2026-11-05 00:27:14,Medium,None
+experiments/exp1_memory_sweep.py,Benchmark Script,"Memory budget sweep (8 KB to 512 KB) evaluating MAE, ARE, FPR, Card. MARE",Current / Benchmark,7924,2026-10-28 21:41:31,High,results/raw/exp1_memory_sweep.json
+experiments/exp2_skew_sweep.py,Benchmark Script,"Zipfian skew sensitivity sweep (alpha in [1.05, 1.50])",Current / Benchmark,3943,2026-10-28 21:41:47,High,results/raw/exp2_skew_sweep.json
+experiments/exp3_latency_benchmark.py,Benchmark Script,Latency and throughput benchmark driver running bench_core,Current / Benchmark,6005,2026-10-28 21:43:27,High,results/raw/exp3_latency_benchmark.json
+experiments/exp4_ablations.py,Benchmark Script,"Systematic component ablation matrix driver (stash, CU, counter bits, HLL)",Current / Benchmark,4944,2026-10-28 21:44:25,High,results/raw/exp4_ablations.json
+experiments/exp5_planner_eval.py,Benchmark Script,Joint memory optimization evaluation,Current / Benchmark,6765,2026-10-28 21:57:44,Medium,results/raw/exp5_planner_eval.json
+experiments/exp6_adaptive_eval.py,Benchmark Script,Adaptive threshold controller evaluation (negative result),Current / Benchmark,7133,2026-10-28 22:00:15,Medium,results/raw/exp6_adaptive_eval.json
+experiments/exp7_certificates_eval.py,Benchmark Script,Interval certificates coverage evaluation,Current / Benchmark,7171,2026-10-28 22:02:05,Medium,results/raw/exp7_certificates_eval.json
+experiments/exp8_compression.py,Benchmark Script,LightRanger compression ratio evaluation across matrix sizes,Current / Benchmark,3108,2026-10-28 22:03:42,Medium,results/raw/exp8_compression.json
+experiments/exp9_real_dataset.py,Benchmark Script,Real-world dataset evaluation (CAIDA network traces and Gutenberg text),Current / Benchmark,7010,2026-11-05 00:27:14,High,results/raw/exp9_real_and_failure_modes.json
+experiments/plot_results.py,Plotting Script,"Generates publication PDF/PNG figures for paper (Figs 1, 2, 3, 4, 5, 7, 8)",Current / Visualization,13832,2026-11-05 00:27:14,High,results/figures/
+results/raw/exp1_memory_sweep.json,Raw Data (JSON),35 raw records across 5 synopses and budgets 8KB-512KB (10 seeds),Current / Authoritative,20816,2026-11-05 00:27:14,Critical,experiments/exp1_memory_sweep.py
+results/raw/exp2_skew_sweep.json,Raw Data (JSON),Raw data for Zipfian skew sweep across alpha 1.05 to 1.50 (10 seeds),Current / Authoritative,2897,2026-11-05 00:27:14,Critical,experiments/exp2_skew_sweep.py
+results/raw/exp3_latency_benchmark.json,Raw Data (JSON),Raw C++ throughput (21.97 Mops/s) and update/query latency measurements,Current / Authoritative,2708,2026-11-05 00:27:14,Critical,experiments/exp3_latency_benchmark.py
+results/raw/exp4_ablations.json,Raw Data (JSON),Raw component ablation results across 7 configurations (10 seeds),Current / Authoritative,1794,2026-11-05 00:27:14,High,experiments/exp4_ablations.py
+results/raw/cardinality_100trials.json,Raw Data (JSON),100-trial cardinality validation confirming 0.0239 RSE,Current / Authoritative,616,2026-11-05 00:27:14,High,scripts/measure_cardinality_100trials.py
+results/raw/equal_accuracy_search.json,Raw Data (JSON),Raw binary search results for equal-accuracy threshold (MAE <= 0.40),Current / Authoritative,168,2026-11-05 00:27:14,High,scripts/search_equal_accuracy.py
+results/raw/exp9_real_and_failure_modes.json,Raw Data (JSON),Raw CAIDA and Gutenberg evaluation results,Current / Authoritative,652,2026-11-05 00:27:14,High,experiments/exp9_real_dataset.py
+audit/AdaLog_Sketch_Audit_Test_Results.csv,Test Data (CSV),14 independent verification test results (T01-T14) with status and findings,Current / Authoritative,3762,2026-11-05 00:43:09,Critical,audit/run_audit_tests.py
+audit/run_audit_tests.py,Test Driver (Python),"Standalone test runner verifying Theorem 2, saturation, C++ vs Python, AMQ FPR",Current / Test Driver,15940,2026-11-05 00:27:14,Critical,audit/AdaLog_Sketch_Audit_Test_Results.csv
+audit/AdaLog_Sketch_Independent_Verification_Audit.pdf,Audit Report (PDF),10-page formal publication-quality forensic audit report,Current / Audit Report,36323,2026-11-04 23:47:26,Critical,audit/build_audit_report.py
+audit/AdaLog_Sketch_Independent_Verification_Audit.md,Audit Report (MD),Full Markdown companion of independent forensic audit report,Current / Audit Report,17325,2026-11-04 23:47:26,Critical,audit/build_audit_report.py
+audit/build_audit_report.py,Report Generator (Python),ReportLab builder generating the 10-page audit PDF and Markdown,Current / Tool,74936,2026-11-05 00:27:14,High,audit/AdaLog_Sketch_Audit_Test_Results.csv
+reports/AdaLog_Final_Technical_Audit.md,Audit Report (MD),Comprehensive technical synthesis and claim verification matrix,Current / Phase 14,4714,2026-11-05 00:26:56,Critical,None
+reports/AdaLog_PreChange_Audit.md,Audit Report (MD),Pre-overhaul baseline architecture and defect inventory,Current / Phase 1,3722,2026-11-05 00:25:21,High,None
+reports/AdaLog_Theorem2_Correction.md,Audit Report (MD),"Formal mathematical derivation, noise bounds, proof and counterexample",Current / Phase 2,5930,2026-11-05 00:25:41,Critical,None
+reports/AdaLog_Algorithm_Correction.md,Audit Report (MD),"Algorithm 1 specification, CU behavior, and C++/Python alignment",Current / Phase 3,2803,2026-11-05 00:26:01,High,None
+reports/AdaLog_Memory_Audit.md,Audit Report (MD),Strict byte-level memory accounting across 8KB-128KB budgets,Current / Phase 5,2810,2026-11-05 00:26:14,Critical,None
+reports/AdaLog_Strict_Baseline_Experiment.md,Audit Report (MD),Comparative evaluation against strictly calibrated 32KB baseline,Current / Phase 6,2502,2026-11-05 00:26:26,High,None
+reports/AdaLog_Experimental_Validation.md,Audit Report (MD),"Real-world traces, LightRanger serialization, and C++ throughput",Current / Phase 11,2517,2026-11-05 00:26:40,High,None
+reports/research_report.md,Course Report (MD),"University M.Tech case study report on standard BF, CMS, and HLL",Historical / Coursework,15106,2026-11-05 00:27:14,Low,None
+research_paper_final/main.tex,Paper Source (LaTeX),"Latest clean IEEE conference paper source (Overleaf ready, 812 lines)",Current / Authoritative,87210,2026-11-05 00:41:36,Critical,paper/references.bib
+paper/main.tex,Paper Source (LaTeX),Identical copy of research_paper_final/main.tex,Current / Duplicate,87210,2026-11-05 00:41:36,Critical,paper/references.bib
+research_paper_final/AdaLog_Sketch_Final_Research_Paper.pdf,Paper Build (PDF),Compiled 13-page research paper PDF (Overleaf build),Current / Authoritative,502906,2026-11-05 00:32:43,Critical,research_paper_final/main.tex
+paper/AdaLog_Sketch_Final_Research_Paper.pdf,Paper Build (PDF),Identical copy of final research paper PDF,Current / Duplicate,502906,2026-11-05 00:32:43,Critical,paper/main.tex
+research_paper_final/AdaLog_Sketch_Final_Research_Paper.tex,Paper Source (LaTeX),Earlier draft containing TODO comments (hash 3418...) superseded by main.tex,Historical / Superseded,88671,2026-11-04 23:47:05,Medium,None
+paper/main_before_fixes.tex,Paper Source (LaTeX),"Paper snapshot before reviewer overhaul (74,503 bytes)",Historical / Archive,74503,2026-11-03 21:57:34,Low,None
+paper/main_original_backup.tex,Paper Source (LaTeX),"Initial draft backup (34,392 bytes)",Historical / Archive,34392,2026-10-25 19:52:54,Low,None
+paper/references.bib,Bibliography (BibTeX),44 clean bibliographic entries matching paper citations,Current / Authoritative,14501,2026-10-28 23:03:36,Critical,research_paper_final/main.tex
+tests/test_adalog_sketch.py,Unit Test (Python),"10 unit tests for AdaLogSketch (saturation, promotion, CU, cardinality, etc.)",Current / Test,8111,2026-11-05 00:27:14,High,adalog/sketch.py
+tests/conftest.py,Test Config,Pytest configuration ensuring PYTHONPATH includes repo root and src,Current / Config,352,2026-11-05 00:27:14,Medium,tests/
+pyproject.toml,Project Config,Build tool configuration and pytest settings,Current / Config,905,2026-11-05 00:27:14,High,None
+requirements.txt,Dependencies,"Python environment pinned dependencies (xxhash, pytest, reportlab, etc.)",Current / Config,199,2026-11-05 00:27:14,High,None
+Makefile,Build Automation,Compilation rules for core/adalog_core.dll and core/bench_core.exe,Current / Build,550,2026-11-05 00:27:14,Medium,core/adalog_core.cpp

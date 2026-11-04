@@ -167,6 +167,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < 100000; ++i) {
         sum += adalog->estimate(keys[i % 50000].data(), (int)keys[i % 50000].size());
     }
+    (void)sum;
     auto q_end = std::chrono::high_resolution_clock::now();
     double est_ns = std::chrono::duration<double, std::nano>(q_end - q_start).count() / 100000.0;
 
