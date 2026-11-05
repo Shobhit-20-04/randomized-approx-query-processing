@@ -15,6 +15,7 @@ class StashEntry:
     key: str
     base_count: int   # CMS estimate at the moment of promotion
     exact_count: int  # Increments accumulated while resident in stash
+    tag: int = 0      # 32-bit tag slice completing 96-bit composite fingerprint
 
     @property
     def total_count(self) -> int:
@@ -108,5 +109,6 @@ class ElephantStash:
         )[:k]
 
     def memory_usage_bytes(self) -> int:
-        # 16-byte key hash + 4-byte baseline + 4-byte exact count = 24 bytes per entry
+        # 24 bytes per entry:
+        # 8B primary hash + 4B tag (96-bit composite fingerprint) + 4B baseline + 4B exact + 4B pad
         return self.capacity * 24

@@ -108,6 +108,46 @@ def predict_hll_rse(m: int) -> float:
     return 1.04 / math.sqrt(m)
 
 
+def compute_theorem2_k_sat(
+    n_stream: int,
+    n_unique: int,
+    alpha: float,
+    counter_bits: int = 8,
+    d: int = 4,
+    w: int = 7232,
+) -> int:
+    """Compute K_sat^*, the analytical saturation threshold for Theorem 2 compliance.
+
+    Theorem 2 (Zero Underestimation) holds if and only if the elephant stash capacity
+    K satisfies K >= K_sat^*, where K_sat^* is the count of distinct keys whose expected
+    frequency f(k) plus matrix collision noise reaches or exceeds the counter capacity
+    C_max = 2^counter_bits - 1.
+
+    For 8-bit counters, C_max = 255.
+    Under Zipfian skew alpha, the k-th item has frequency f(k) ~ (N / H_{U, alpha}) * k^(-alpha).
+    Residual matrix collision noise adds ~ (N / (w * c_cu)).
+    Solving f(k) + collision_noise >= C_max yields:
+        k <= ((max(1.0, C_max - collision_noise)) / (N / H_{U, alpha}))^(-1 / alpha)
+    """
+    if n_stream <= 0 or n_unique <= 0 or alpha <= 0:
+        return 0
+    c_max = (1 << counter_bits) - 1
+    h_total = zipf_harmonic_sum(n_unique, alpha)
+    if h_total <= 0:
+        return 0
+
+    est_noise = (n_stream / float(max(1, w))) * 0.33
+    net_threshold = max(1.0, float(c_max) - est_noise)
+
+    c_alpha_n = float(n_stream) / h_total
+    if c_alpha_n <= net_threshold:
+        return 0
+
+    ratio = net_threshold / c_alpha_n
+    k_sat = int(math.floor(ratio ** (-1.0 / alpha)))
+    return max(0, min(n_unique, k_sat))
+
+
 def compute_adalog_memory_bytes(
     d: int,
     w: int,
@@ -121,11 +161,11 @@ def compute_adalog_memory_bytes(
     
     - Counter matrix: d * w * counter_bits / 8
     - HLL registers: m * 6 / 8 (packed 6-bit registers)
-    - Stash: K * 16 bytes (key hash 8B, baseline 4B, exact count 4B)
+    - Stash: K * 24 bytes (8B primary hash + 4B secondary tag [96-bit fingerprint], 4B baseline, 4B exact count, 4B pad)
     - Variant B presence plane: variant_b_bits / 8 bytes
     """
     matrix_bytes = (d * w * counter_bits + 7) // 8
     hll_bytes = (m * 6 + 7) // 8
-    stash_bytes = K * 16
+    stash_bytes = K * 24
     vb_bytes = (variant_b_bits + 7) // 8 if variant_b else 0
     return matrix_bytes + hll_bytes + stash_bytes + vb_bytes

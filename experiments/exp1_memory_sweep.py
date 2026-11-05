@@ -107,7 +107,9 @@ def run_memory_sweep(
         adalog_fpr = adalog_fps / float(len(uninserted_keys))
         adalog_card = adalog.cardinality()
         adalog_rse = abs(adalog_card - actual_cardinality) / float(actual_cardinality)
-        adalog_f1 = evaluate_top_k_f1(ground_truth, adalog.top_k(100), k=100)
+        k_resident = min(100, stash_k)
+        adalog_resident_f1 = evaluate_top_k_f1(ground_truth, adalog.top_k(k_resident), k=k_resident)
+        adalog_fixed_100_f1 = evaluate_top_k_f1(ground_truth, adalog.top_k(100), k=100)
 
         results.append({
             "model": "AdaLog-Sketch",
@@ -116,10 +118,13 @@ def run_memory_sweep(
             "mae": adalog_mae,
             "fpr": adalog_fpr,
             "rse": adalog_rse,
-            "top_k_f1": adalog_f1,
+            "top_k_f1": adalog_resident_f1,
+            "top_k_resident_f1": adalog_resident_f1,
+            "top_100_fixed_f1": adalog_fixed_100_f1,
+            "top_100_capacity_bound": min(1.0, stash_k / 100.0),
             "underestimates": adalog_underestimates,
         })
-        print(f"  AdaLog-Sketch  -> MAE: {adalog_mae:6.2f} | FPR: {adalog_fpr:7.4f} | RSE: {adalog_rse:6.4f} | F1: {adalog_f1:.3f} | Underestimates: {adalog_underestimates}")
+        print(f"  AdaLog-Sketch  -> MAE: {adalog_mae:6.2f} | FPR: {adalog_fpr:7.4f} | RSE: {adalog_rse:6.4f} | Resident F1 (k={k_resident}): {adalog_resident_f1:.3f} | Fixed Top-100 F1: {adalog_fixed_100_f1:.3f} | Underestimates: {adalog_underestimates}")
 
         # -------------------------------------------------------------
         # 2. Disjoint Baseline Stack (Bloom + CMS-CU + HLL)

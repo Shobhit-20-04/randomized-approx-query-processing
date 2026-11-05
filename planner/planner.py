@@ -12,6 +12,7 @@ import math
 
 from planner.error_models import (
     compute_adalog_memory_bytes,
+    compute_theorem2_k_sat,
     predict_cms_cu_mae,
     predict_hll_rse,
     predict_membership_fpr,
@@ -32,6 +33,8 @@ class PlannerConfig:
     predicted_fpr: float
     predicted_rse: float
     total_bytes: int
+    k_sat: int = 0
+    theorem2_guaranteed: bool = True
 
     def to_dict(self) -> Dict:
         return {
@@ -46,6 +49,8 @@ class PlannerConfig:
             "predicted_fpr": self.predicted_fpr,
             "predicted_rse": self.predicted_rse,
             "total_bytes": self.total_bytes,
+            "k_sat": self.k_sat,
+            "theorem2_guaranteed": self.theorem2_guaranteed,
         }
 
 
@@ -101,18 +106,25 @@ class AdaLogPlanner:
         d_candidates = [3, 4, 5]
         counter_bit_candidates = [8, 16]
         m_candidates = [256, 512, 1024, 2048, 4096]
-        k_candidates = [16, 32, 64, 128]
 
         for bits in counter_bit_candidates:
-            # Sizing invariant: 8-bit saturating counters require K >= 64 to prevent truncation on elephants
-            k_candidates = [64, 128] if bits == 8 else [16, 32, 64, 128]
+            # Theorem 2 Sizing: compute saturation threshold K_sat^*
+            k_sat = compute_theorem2_k_sat(
+                n_stream=n_stream, n_unique=n_unique, alpha=skew, counter_bits=bits
+            )
+            # Ensure candidates include Theorem 2 safe capacities (K >= K_sat) when budget allows
+            if bits == 8:
+                k_candidates = sorted(list(set([64, 128, max(64, min(256, (k_sat + 15) // 16 * 16))])))
+            else:
+                k_candidates = [16, 32, 64, 128]
+
             for m in m_candidates:
                 hll_bytes = (m * 6 + 7) // 8
                 if hll_bytes >= budget_bytes:
                     continue
 
                 for K in k_candidates:
-                    stash_bytes = K * 16
+                    stash_bytes = K * 24
                     fixed_bytes = hll_bytes + stash_bytes
                     remaining_bytes = budget_bytes - fixed_bytes
                     if remaining_bytes <= 100:
@@ -159,6 +171,10 @@ class AdaLogPlanner:
                         if target_mae is not None and pred_mae > target_mae:
                             penalty += 10.0 * (pred_mae - target_mae)
 
+                        # Theorem 2 Invariant check: zero-underestimation holds if K >= K_sat
+                        t2_ok = (bits >= 16) or (K >= k_sat)
+                        t2_penalty = 0.0 if t2_ok else (k_sat - K) * 1.5
+
                         # Normalized score (lower is better)
                         # RSE target 0.035 is achieved by m=1024; penalize if RSE exceeds 0.04
                         rse_penalty = max(0.0, pred_rse - 0.035) * 50.0
@@ -167,6 +183,7 @@ class AdaLogPlanner:
                             + self.w_fpr * (pred_fpr * 5.0)
                             + self.w_rse * rse_penalty
                             + penalty
+                            + t2_penalty
                         )
 
                         if score < best_score:
@@ -183,6 +200,8 @@ class AdaLogPlanner:
                                 predicted_fpr=pred_fpr,
                                 predicted_rse=pred_rse,
                                 total_bytes=actual_bytes,
+                                k_sat=k_sat,
+                                theorem2_guaranteed=t2_ok,
                             )
 
         # Fallback if no configuration met constraints
@@ -191,7 +210,8 @@ class AdaLogPlanner:
             K = 32
             d = 4
             bits = 8
-            fixed_bytes = (m * 6 + 7) // 8 + K * 16
+            k_sat_fb = compute_theorem2_k_sat(n_stream, n_unique, skew, counter_bits=bits)
+            fixed_bytes = (m * 6 + 7) // 8 + K * 24
             rem = max(64, budget_bytes - fixed_bytes)
             w = max(64, int((rem * 8) // (d * bits)))
             best_config = PlannerConfig(
@@ -201,6 +221,8 @@ class AdaLogPlanner:
                 predicted_fpr=predict_membership_fpr(d, w, n_unique),
                 predicted_rse=predict_hll_rse(m),
                 total_bytes=compute_adalog_memory_bytes(d, w, bits, m, K),
+                k_sat=k_sat_fb,
+                theorem2_guaranteed=(K >= k_sat_fb),
             )
 
         return best_config
