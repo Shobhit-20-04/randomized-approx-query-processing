@@ -9,7 +9,11 @@ if not exist "%ROOT_DIR%\core" mkdir "%ROOT_DIR%\core"
 
 where g++ >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    echo Warning: g++ not found in PATH, using precompiled core\adalog_core.dll
+    if not exist "%ROOT_DIR%\core\adalog_core.dll" (
+        echo Error: g++ not found in PATH and no fallback core\adalog_core.dll exists.
+        exit /b 1
+    )
+    echo Warning: g++ not found in PATH, verified fallback core\adalog_core.dll exists.
     exit /b 0
 )
 
@@ -22,8 +26,11 @@ g++ -std=c++17 -O3 -mavx2 -shared -static -static-libgcc -static-libstdc++ ^
     "%ROOT_DIR%\src\cpp\core\adalog_core.cpp"
 
 if %ERRORLEVEL% NEQ 0 (
-    echo Warning: Compilation failed, falling back to precompiled core\adalog_core.dll
-    exit /b 0
+    if not exist "%ROOT_DIR%\core\adalog_core.dll" (
+        echo Error: Compilation failed and no usable core\adalog_core.dll exists.
+        exit /b 1
+    )
+    echo Warning: Compilation failed, verified fallback core\adalog_core.dll exists.
 )
 
 echo Building AdaLog-Core Benchmark Binary (Windows EXE)...
@@ -38,6 +45,11 @@ if %ERRORLEVEL% NEQ 0 (
     echo Warning: bench_core compilation failed
 )
 
-echo Build successful or precompiled binary active.
+if not exist "%ROOT_DIR%\core\adalog_core.dll" (
+    echo Error: Target core\adalog_core.dll does not exist.
+    exit /b 1
+)
+
+echo Build verified: core\adalog_core.dll is ready.
 endlocal
 exit /b 0

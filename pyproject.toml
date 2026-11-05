@@ -5,9 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adalog-sketch"
 version = "0.2.0"
-description = "AdaLog-Sketch: A Unified Approximate Query Processing Data Structure for Multi-Task Stream Analytics"
+description = "AdaLog-Sketch: A Contiguous-Memory Approximate Query Processing Synopsis for Multi-Task Stream Analytics"
 readme = "README.md"
-authors = [{ name = "Shobhit Agrawal", email = "shobhitagrawal2004@gmail.com" }]
+authors = [
+    { name = "Shobhit Agrawal", email = "shobhit.agrawal2026@vitstudent.ac.in" },
+    { name = "Mayuri Rajendra Pawar", email = "mayuri.rajendra2026@vitstudent.ac.in" },
+    { name = "Parveen Sultana H", email = "hparveensultana@vit.ac.in" }
+]
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [

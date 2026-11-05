@@ -400,7 +400,11 @@ public:
         return raw;
     }
 
-    // Top-k heavy hitter extraction directly from stash
+    // Top-k heavy hitter extraction directly from stash.
+    // API Contract: Returns 64-bit primary key fingerprints (h1) and exact counts.
+    // In hardware/kernel environments where dynamic string memory allocation is avoided,
+    // keys are identified by their 64-bit hash; an application-level key registry
+    // maps hashes to original string keys when human-readable labels are required.
     int get_top_k(int k, uint64_t* out_hashes, uint64_t* out_counts) const {
         if (!use_stash || stash_count == 0 || k <= 0) return 0;
 

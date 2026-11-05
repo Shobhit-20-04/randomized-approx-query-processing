@@ -21,7 +21,7 @@ class StashEntry:
     @property
     def total_count(self) -> int:
         tot = self.base_count + self.exact_count
-        return min(tot, 0xFFFFFFFF)
+        return min(tot, 0xFFFFFFFFFFFFFFFF)
 
 
 class ElephantStash:
@@ -64,7 +64,7 @@ class ElephantStash:
         entry = self.entries.get(key)
         if entry is not None:
             new_exact = entry.exact_count + count
-            entry.exact_count = min(new_exact, 0xFFFFFFFF)
+            entry.exact_count = min(new_exact, 0xFFFFFFFFFFFFFFFF)
             return True
         return False
 
@@ -119,8 +119,8 @@ class ElephantStash:
 
     def logical_memory_bytes(self) -> int:
         """
-        Logical hardware memory model: 24 bytes per slot.
-        8B primary hash + 4B secondary tag + 4B baseline + 4B exact + 4B status/padding.
+        Logical hardware memory model: exactly 24 bytes per slot.
+        8B primary hash + 4B tag (with MSB occupancy bit) + 4B baseline + 8B exact counter = 24B.
         For K=128: exactly 3,072 bytes.
         """
         return self.capacity * 24

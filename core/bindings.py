@@ -177,11 +177,22 @@ class CompiledAdaLog:
     def cardinality(self) -> float:
         return float(lib.adalog_cardinality(self._ptr))
 
-    def top_k(self, k: int) -> list[tuple[int, int]]:
+    def top_k(self, k: int, key_registry: dict[int, str | bytes] | None = None) -> list[tuple[int | str | bytes, int]]:
+        """
+        Extracts top-k heavy hitters from the resident elephant stash.
+        Returns (64-bit primary hash, exact_count) pairs by default.
+        If an optional key_registry mapping {hash: key} is provided, returns (key, exact_count).
+        """
         out_hashes = (ctypes.c_uint64 * k)()
         out_counts = (ctypes.c_uint64 * k)()
         n = lib.adalog_top_k(self._ptr, k, out_hashes, out_counts)
-        return [(int(out_hashes[i]), int(out_counts[i])) for i in range(n)]
+        res = []
+        for i in range(n):
+            h_val = int(out_hashes[i])
+            c_val = int(out_counts[i])
+            key_val = key_registry.get(h_val, h_val) if key_registry else h_val
+            res.append((key_val, c_val))
+        return res
 
     def stash_stats(self) -> dict[str, int]:
         return {
