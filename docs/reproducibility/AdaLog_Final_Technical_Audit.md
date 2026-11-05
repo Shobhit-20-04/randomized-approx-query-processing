@@ -4,9 +4,8 @@
 **Auditor:** Senior Principal Research Scientist & Forensic Reviewer  
 **Classification:** Definitive Technical Certification & Reviewer Response Document  
 **Audited Artifacts:**
-- Primary LaTeX Manuscript: `paper_local/latex/main.tex` (Cleaned, 825 lines)
-- Revised Publication PDF: `paper_local/pdf/AdaLog_Sketch_Revised_Publication_Paper.pdf` (517 KB, 14 pages)
-- Overleaf Submission Bundle: `paper_local/AdaLog_Sketch_Overleaf_Package.zip` (Refreshed, 1.46 MB)
+- Primary LaTeX Manuscript: `paper_local/latex/main.tex` (Strict 11-Page IEEE Conference Layout, 629 lines, 7,597 words)
+- Overleaf Submission Bundle: `paper_local/AdaLog_Sketch_Overleaf_Package.zip` (11-Page Publication Package, 1.45 MB)
 - High-Performance C++ Production Engine: `core/adalog_core.cpp` (MurmurHash3-128, 96-bit stash, 24B layout)
 - Python Reference & Planner: `adalog/`, `planner/error_models.py`, `planner/planner.py`
 - Test & Benchmark Verification: `tests/`, `audit/AdaLog_Sketch_Audit_Test_Results.csv` (14/14 PASS, 40/40 pytest PASS, GitHub Actions 4/4 Green)
