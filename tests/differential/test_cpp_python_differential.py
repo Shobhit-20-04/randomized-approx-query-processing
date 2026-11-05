@@ -149,16 +149,31 @@ def test_binary_key_support_without_collision():
     assert py_sketch.estimate(bin_key2) == cpp_sketch.estimate(bin_key2)
 
 def test_64bit_exact_counter_tracking_without_clipping():
-    """Verify that 64-bit stash exact counters in native C++ do not saturate at UINT32_MAX."""
+    """Verify that 64-bit stash exact counters in both Python and C++ do not saturate at UINT32_MAX (2^32 - 1)."""
+    py_sketch = AdaLogSketch(width=1024, depth=4, counter_bits=8, stash_capacity=16, stash_tau=5, seed=42)
     cpp_sketch = CompiledAdaLog(width=1024, depth=4, counter_bits=8, stash_capacity=16, elephant_threshold=5, seed=42)
     key = "super_heavy_elephant_stream_key"
+
     # Seed key into stash
+    py_sketch.update(key, 10)
     cpp_sketch.update(key, 10)
-    # Add large increments exceeding 32-bit range
+
+    # Add large increments exceeding 32-bit range (> 2^32 - 1 = 4,294,967,295)
     large_inc = 5_000_000_000  # 5 billion > 2^32 - 1
+    py_sketch.update(key, large_inc)
     cpp_sketch.update(key, large_inc)
-    est = cpp_sketch.estimate(key)
-    assert est >= 5_000_000_010, f"C++ estimate clipped unexpectedly: {est}"
+
+    py_est = py_sketch.estimate(key)
+    cpp_est = cpp_sketch.estimate(key)
+    assert py_est >= 5_000_000_010, f"Python estimate clipped unexpectedly: {py_est}"
+    assert cpp_est >= 5_000_000_010, f"C++ estimate clipped unexpectedly: {cpp_est}"
+    assert py_est == cpp_est, f"Mismatch between Python ({py_est}) and C++ ({cpp_est})"
+
+    # Further accumulation in 64-bit domain
+    py_sketch.update(key, 10_000_000_000)
+    cpp_sketch.update(key, 10_000_000_000)
+    assert py_sketch.estimate(key) == cpp_sketch.estimate(key)
+    assert py_sketch.estimate(key) >= 15_000_000_010
 
 def test_constructor_parameter_validation():
     """Verify that native C++ engine rejects invalid constructor arguments safely."""
@@ -168,3 +183,9 @@ def test_constructor_parameter_validation():
         CompiledAdaLog(depth=0)
     with pytest.raises(ValueError):
         CompiledAdaLog(counter_bits=12)  # Invalid counter bits
+    with pytest.raises(ValueError):
+        CompiledAdaLog(hll_m=5)   # Below minimum supported HLL precision (m >= 16)
+    with pytest.raises(ValueError):
+        CompiledAdaLog(hll_m=1_000_000)  # Exceeds maximum supported HLL precision
+    with pytest.raises(ValueError):
+        CompiledAdaLog(stash_capacity=2_000_000)  # Exceeds maximum supported stash capacity

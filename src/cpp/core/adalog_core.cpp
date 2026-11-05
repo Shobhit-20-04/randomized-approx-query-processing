@@ -13,12 +13,37 @@
 // ============================================================================
 
 struct StashItem {
-    uint64_t key_hash;    // 8 bytes: primary 64-bit hash
-    uint32_t tag;         // 4 bytes: secondary 32-bit tag (96-bit composite fingerprint)
+    uint64_t key_hash;    // 8 bytes: primary 64-bit hash (Lane 0)
+    uint32_t tag;         // 4 bytes: MSB (0x80000000U) is occupied flag; lower 31 bits are secondary tag (Lane 1)
     uint32_t base_count;  // 4 bytes: baseline matrix counter value at promotion
     uint64_t exact_count; // 8 bytes: 64-bit exact increments while resident in stash
-    // Total: exactly 24 bytes per entry, natural 8-byte alignment.
+    // Total: exactly 24 bytes per entry, natural 8-byte alignment, zero padding bytes.
+
+    static constexpr uint32_t OCCUPIED_MASK = 0x80000000U;
+    static constexpr uint32_t TAG_MASK = 0x7FFFFFFFU;
+
+    inline bool is_occupied() const { return (tag & OCCUPIED_MASK) != 0; }
+    inline uint32_t get_tag() const { return tag & TAG_MASK; }
+    inline void set(uint64_t kh, uint32_t t, uint32_t base, uint64_t exact) {
+        key_hash = kh;
+        tag = (t & TAG_MASK) | OCCUPIED_MASK;
+        base_count = base;
+        exact_count = exact;
+    }
+    inline void clear() {
+        key_hash = 0;
+        tag = 0;
+        base_count = 0;
+        exact_count = 0;
+    }
+    inline uint64_t total() const {
+        uint64_t bc = base_count;
+        uint64_t ec = exact_count;
+        return (ec > UINT64_MAX - bc) ? UINT64_MAX : (bc + ec);
+    }
 };
+
+static_assert(sizeof(StashItem) == 24, "StashItem must be exactly 24 bytes");
 
 class AdaLogCore {
 public:
@@ -42,11 +67,7 @@ public:
     bool use_stash;
     int stash_cap;
     uint32_t tau;
-    uint64_t* stash_keys;
-    uint32_t* stash_tags;
-    uint32_t* stash_base;
-    uint64_t* stash_exact;    // 64-bit exact counter: prevents 32-bit integer overflow
-    uint8_t* stash_occupied;  // 1 = occupied, 0 = empty
+    StashItem* stash_items;   // Exactly 24 bytes per slot, single contiguous array
     int stash_count;
     uint64_t stash_insertions;
     uint64_t stash_evictions;
@@ -73,11 +94,14 @@ public:
         if (scap < 0) {
             throw std::invalid_argument("AdaLogCore stash_capacity cannot be negative");
         }
+        if (scap > 1000000) {
+            throw std::invalid_argument("AdaLogCore stash_cap exceeds maximum supported capacity (1,000,000)");
+        }
         if (thresh < 0) {
             throw std::invalid_argument("AdaLogCore tau cannot be negative");
         }
-        if (hll_regs <= 0) {
-            throw std::invalid_argument("AdaLogCore hll_regs must be positive");
+        if (hll_regs < 16 || hll_regs > 262144) {
+            throw std::invalid_argument("AdaLogCore hll_regs must be between 16 and 262144 (precision p in [4, 18])");
         }
 
         uint64_t total_cells = (uint64_t)w * (uint64_t)d;
@@ -103,19 +127,11 @@ public:
             table32 = (uint32_t*)calloc(w * d, sizeof(uint32_t));
         }
 
-        // 2. Configure Fully Associative Stash
+        // 2. Configure Fully Associative Stash (Genuinely 24 bytes per slot)
         if (use_stash && scap > 0) {
-            stash_keys = (uint64_t*)calloc(stash_cap, sizeof(uint64_t));
-            stash_tags = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
-            stash_base = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
-            stash_exact = (uint64_t*)calloc(stash_cap, sizeof(uint64_t));
-            stash_occupied = (uint8_t*)calloc(stash_cap, sizeof(uint8_t));
+            stash_items = (StashItem*)calloc(stash_cap, sizeof(StashItem));
         } else {
-            stash_keys = nullptr;
-            stash_tags = nullptr;
-            stash_base = nullptr;
-            stash_exact = nullptr;
-            stash_occupied = nullptr;
+            stash_items = nullptr;
         }
 
         // 3. Configure Decoupled HyperLogLog Subsketch
@@ -139,11 +155,7 @@ public:
         if (table16) free(table16);
         if (table32) free(table32);
         if (hll_reg) free(hll_reg);
-        if (stash_keys) free(stash_keys);
-        if (stash_tags) free(stash_tags);
-        if (stash_base) free(stash_base);
-        if (stash_exact) free(stash_exact);
-        if (stash_occupied) free(stash_occupied);
+        if (stash_items) free(stash_items);
     }
 
     inline uint32_t get_cell(int row, int col) const {
@@ -192,8 +204,11 @@ public:
     // Fully associative search over stash_cap slots
     inline int find_stash_slot(uint64_t key_hash, uint32_t tag) const {
         if (!use_stash || stash_count == 0) return -1;
+        uint32_t t_match = tag & StashItem::TAG_MASK;
         for (int i = 0; i < stash_cap; i++) {
-            if (stash_occupied[i] && stash_keys[i] == key_hash && stash_tags[i] == tag) {
+            if (stash_items[i].is_occupied() &&
+                stash_items[i].key_hash == key_hash &&
+                stash_items[i].get_tag() == t_match) {
                 return i;
             }
         }
@@ -202,7 +217,12 @@ public:
 
     void update(const char* key, int len, uint64_t count) {
         if (count <= 0) return;
-        total_volume += count;
+        // Saturating total_volume accumulation
+        if (total_volume > UINT64_MAX - count) {
+            total_volume = UINT64_MAX;
+        } else {
+            total_volume += count;
+        }
 
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
@@ -210,13 +230,18 @@ public:
         // 64-bit arithmetic prevents intermediate 32-bit integer overflow before modulo
         uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
         uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
-        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFFULL); // 32-bit tag completing 96-bit composite fingerprint
+        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFFULL);
 
         // --- Fast Path: Fully Associative Stash Hit ---
         if (use_stash && stash_count > 0) {
             int slot = find_stash_slot(h[0], tag);
             if (slot >= 0) {
-                stash_exact[slot] += (uint64_t)count; // 64-bit exact tracking without 32-bit clipping
+                // Saturating 64-bit addition prevents integer overflow
+                if (stash_items[slot].exact_count > UINT64_MAX - count) {
+                    stash_items[slot].exact_count = UINT64_MAX;
+                } else {
+                    stash_items[slot].exact_count += count;
+                }
                 return;
             }
         }
@@ -258,12 +283,9 @@ public:
             // Case A: Stash not full - admit into first open slot
             if (stash_count < stash_cap) {
                 for (int i = 0; i < stash_cap; i++) {
-                    if (!stash_occupied[i]) {
-                        stash_keys[i] = h[0];
-                        stash_tags[i] = tag;
-                        stash_base[i] = (v_min > max_val) ? max_val : v_min;
-                        stash_exact[i] = (uint64_t)count;
-                        stash_occupied[i] = 1;
+                    if (!stash_items[i].is_occupied()) {
+                        uint32_t base = (v_min > max_val) ? max_val : v_min;
+                        stash_items[i].set(h[0], tag, base, count);
                         stash_count++;
                         stash_insertions++;
                         return;
@@ -275,8 +297,8 @@ public:
             int evict_slot = -1;
             uint64_t min_tot = UINT64_MAX;
             for (int i = 0; i < stash_cap; i++) {
-                if (stash_occupied[i]) {
-                    uint64_t tot = (uint64_t)stash_base[i] + stash_exact[i];
+                if (stash_items[i].is_occupied()) {
+                    uint64_t tot = stash_items[i].total();
                     if (tot < (uint64_t)max_val && tot < min_tot) {
                         min_tot = tot;
                         evict_slot = i;
@@ -284,10 +306,10 @@ public:
                 }
             }
 
-            uint64_t candidate_tot = (uint64_t)v_min + (uint64_t)count;
+            uint64_t candidate_tot = (count > UINT64_MAX - (uint64_t)v_min) ? UINT64_MAX : ((uint64_t)v_min + count);
             if (evict_slot >= 0 && candidate_tot > min_tot) {
                 // Lossless monotonic write-back to matrix using 64-bit row indexing
-                uint64_t evict_h = stash_keys[evict_slot];
+                uint64_t evict_h = stash_items[evict_slot].key_hash;
                 uint64_t eh1 = (uint64_t)(evict_h & 0xFFFFFFFFULL);
                 uint64_t eh2 = (uint64_t)((evict_h >> 32) & 0xFFFFFFFFULL) | 1ULL;
                 uint32_t wb_val = (min_tot > (uint64_t)max_val) ? max_val : (uint32_t)min_tot;
@@ -298,11 +320,8 @@ public:
                     if (wb_val > cur) set_cell(j, idx, wb_val);
                 }
 
-                stash_keys[evict_slot] = h[0];
-                stash_tags[evict_slot] = tag;
-                stash_base[evict_slot] = (v_min > max_val) ? max_val : v_min;
-                stash_exact[evict_slot] = (uint64_t)count;
-                stash_occupied[evict_slot] = 1;
+                uint32_t base = (v_min > max_val) ? max_val : v_min;
+                stash_items[evict_slot].set(h[0], tag, base, count);
                 stash_evictions++;
             } else {
                 stash_rejections++;
@@ -321,7 +340,7 @@ public:
         if (use_stash && stash_count > 0) {
             int slot = find_stash_slot(h[0], tag);
             if (slot >= 0) {
-                return (uint64_t)stash_base[slot] + stash_exact[slot];
+                return stash_items[slot].total();
             }
         }
 
@@ -389,9 +408,8 @@ public:
         candidates.reserve(stash_count);
 
         for (int i = 0; i < stash_cap; i++) {
-            if (stash_occupied[i]) {
-                uint64_t tot = (uint64_t)stash_base[i] + stash_exact[i];
-                candidates.push_back({tot, stash_keys[i]});
+            if (stash_items[i].is_occupied()) {
+                candidates.push_back({stash_items[i].total(), stash_items[i].key_hash});
             }
         }
 
@@ -411,8 +429,9 @@ public:
     size_t get_memory_bytes() const {
         size_t mat_b = (size_t)width * depth * (counter_bits / 8);
         size_t hll_b = (size_t)hll_bytes;
-        // 24 bytes per entry: 8B key_hash + 4B tag + 4B base + 8B exact = 24B
-        size_t st_b = (use_stash && stash_cap > 0) ? ((size_t)stash_cap * 24) : 0;
+        // Exactly 24 bytes per slot via sizeof(StashItem):
+        // 8B key_hash + 4B tag (with MSB occupancy bit) + 4B base + 8B exact = 24B
+        size_t st_b = (use_stash && stash_cap > 0) ? ((size_t)stash_cap * sizeof(StashItem)) : 0;
         return mat_b + hll_b + st_b;
     }
 };

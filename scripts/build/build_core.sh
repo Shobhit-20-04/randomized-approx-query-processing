@@ -13,7 +13,7 @@ g++ -std=c++17 -O3 -mavx2 -shared -fPIC \
     -I"${ROOT_DIR}/src/cpp/hashing" \
     -I"${ROOT_DIR}/core" \
     -o "${ROOT_DIR}/core/libadalog_core.so" \
-    "${ROOT_DIR}/core/adalog_core.cpp"
+    "${ROOT_DIR}/src/cpp/core/adalog_core.cpp"
 
 echo "Building AdaLog-Core Benchmark Binary (Linux)..."
 g++ -std=c++17 -O3 -mavx2 \

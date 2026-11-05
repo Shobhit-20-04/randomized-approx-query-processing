@@ -19,7 +19,7 @@ g++ -std=c++17 -O3 -mavx2 -shared -static -static-libgcc -static-libstdc++ ^
     -I"%ROOT_DIR%\src\cpp\hashing" ^
     -I"%ROOT_DIR%\core" ^
     -o "%ROOT_DIR%\core\adalog_core.dll" ^
-    "%ROOT_DIR%\core\adalog_core.cpp"
+    "%ROOT_DIR%\src\cpp\core\adalog_core.cpp"
 
 if %ERRORLEVEL% NEQ 0 (
     echo Warning: Compilation failed, falling back to precompiled core\adalog_core.dll
