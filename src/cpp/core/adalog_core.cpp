@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 #include "hash_xxh3.h"
 
 // ============================================================================
@@ -16,7 +17,7 @@ struct StashItem {
     uint32_t tag;
     uint32_t base_count;
     uint32_t exact_count;
-    uint32_t pad; // 24 bytes per entry: 8B primary key hash + 4B secondary tag (96-bit composite fingerprint) + 4B base + 4B exact + 4B pad
+    uint32_t is_occupied; // 24 bytes per entry: 8B primary hash + 4B secondary tag + 4B base + 4B exact + 4B status
 };
 
 class AdaLogCore {
@@ -24,28 +25,28 @@ public:
     int width;
     int depth;
     int counter_bits;
-    int max_val;
+    uint32_t max_val;
     uint32_t seed;
     uint64_t total_volume;
-    
+
     uint8_t* table8;
     uint16_t* table16;
     uint32_t* table32;
-    
+
     int hll_m;
+    int hll_p;
     int hll_bytes;
     uint8_t* hll_reg;
     double hll_alpha;
-    
+
     bool use_stash;
     int stash_cap;
     uint32_t tau;
-    int stash_table_size;
-    uint64_t stash_mask;
     uint64_t* stash_keys;
     uint32_t* stash_tags;
     uint32_t* stash_base;
     uint32_t* stash_exact;
+    uint32_t* stash_occupied; // 0 = empty, 1 = occupied (never relies on hash 0)
     int stash_count;
     uint64_t stash_insertions;
     uint64_t stash_evictions;
@@ -59,48 +60,50 @@ public:
           use_stash(scap > 0), stash_cap(scap), tau(thresh),
           stash_count(0), stash_insertions(0), stash_evictions(0), stash_rejections(0)
     {
+        if (depth <= 0 || depth > 64) {
+            throw std::invalid_argument("AdaLogCore depth must be between 1 and 64");
+        }
+
         // 1. Configure Counter Matrix
         if (bits == 8) {
-            max_val = 255;
+            max_val = 255U;
             table8 = (uint8_t*)calloc(w * d, sizeof(uint8_t));
             table16 = nullptr;
             table32 = nullptr;
         } else if (bits == 16) {
-            max_val = 65535;
+            max_val = 65535U;
             table8 = nullptr;
             table16 = (uint16_t*)calloc(w * d, sizeof(uint16_t));
             table32 = nullptr;
         } else {
-            max_val = 0x7FFFFFFF;
+            max_val = 0xFFFFFFFFU; // Full unsigned 32-bit maximum
             table8 = nullptr;
             table16 = nullptr;
             table32 = (uint32_t*)calloc(w * d, sizeof(uint32_t));
         }
 
-        // 2. Configure Stash (Dynamic Configurable Capacity)
+        // 2. Configure Fully Associative Stash
         if (use_stash && scap > 0) {
-            // Find power of 2 >= scap
-            int tsize = 16;
-            while (tsize < scap) {
-                tsize <<= 1;
-            }
-            stash_table_size = tsize;
-            stash_mask = (uint64_t)(stash_table_size - 1);
-            stash_keys = (uint64_t*)calloc(stash_table_size, sizeof(uint64_t));
-            stash_tags = (uint32_t*)calloc(stash_table_size, sizeof(uint32_t));
-            stash_base = (uint32_t*)calloc(stash_table_size, sizeof(uint32_t));
-            stash_exact = (uint32_t*)calloc(stash_table_size, sizeof(uint32_t));
+            stash_keys = (uint64_t*)calloc(stash_cap, sizeof(uint64_t));
+            stash_tags = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
+            stash_base = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
+            stash_exact = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
+            stash_occupied = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
         } else {
-            stash_table_size = 0;
-            stash_mask = 0;
             stash_keys = nullptr;
             stash_tags = nullptr;
             stash_base = nullptr;
             stash_exact = nullptr;
+            stash_occupied = nullptr;
         }
 
-        // 3. Configure HyperLogLog Subsketch (Decoupled from width w: default 1024 registers)
+        // 3. Configure Decoupled HyperLogLog Subsketch
         hll_m = (hll_regs > 0) ? hll_regs : 1024;
+        hll_p = 4;
+        while ((1 << hll_p) < hll_m) {
+            hll_p++;
+        }
+        hll_m = 1 << hll_p; // Align to power of two
         hll_bytes = (hll_m * 6 + 7) / 8; // Exactly 768 bytes for m=1024
         hll_reg = (uint8_t*)calloc(hll_bytes, sizeof(uint8_t));
 
@@ -109,8 +112,6 @@ public:
         else if (hll_m >= 32) hll_alpha = 0.697;
         else hll_alpha = 0.673;
     }
-
-
 
     ~AdaLogCore() {
         if (table8) free(table8);
@@ -121,6 +122,7 @@ public:
         if (stash_tags) free(stash_tags);
         if (stash_base) free(stash_base);
         if (stash_exact) free(stash_exact);
+        if (stash_occupied) free(stash_occupied);
     }
 
     inline uint32_t get_cell(int row, int col) const {
@@ -132,13 +134,14 @@ public:
 
     inline void set_cell(int row, int col, uint32_t val) {
         int idx = row * width + col;
-        uint32_t b_val = (val > (uint32_t)max_val) ? max_val : val;
+        uint32_t b_val = (val > max_val) ? max_val : val;
         if (counter_bits == 8) table8[idx] = (uint8_t)b_val;
         else if (counter_bits == 16) table16[idx] = (uint16_t)b_val;
         else table32[idx] = b_val;
     }
 
     inline void update_hll(int idx, int rank) {
+        if (idx < 0 || idx >= hll_m) return;
         int bit_pos = idx * 6;
         int byte_pos = bit_pos >> 3;
         int offset = bit_pos & 7;
@@ -165,17 +168,17 @@ public:
         }
     }
 
+    // Fully associative search over stash_cap slots
     inline int find_stash_slot(uint64_t key_hash, uint32_t tag) const {
-        if (!use_stash || stash_count == 0 || stash_table_size <= 0) return -1;
-        int base_slot = (int)(key_hash & stash_mask);
-        #pragma GCC unroll 8
-        for (int p = 0; p < 8; p++) {
-            int slot = (base_slot + p) & (int)stash_mask;
-            if (stash_keys[slot] == key_hash && stash_tags[slot] == tag) return slot;
-            if (stash_keys[slot] == 0) return -1;
+        if (!use_stash || stash_count == 0) return -1;
+        for (int i = 0; i < stash_cap; i++) {
+            if (stash_occupied[i] && stash_keys[i] == key_hash && stash_tags[i] == tag) {
+                return i;
+            }
         }
         return -1;
     }
+
     void update(const char* key, int len, uint32_t count) {
         if (count <= 0) return;
         total_volume += count;
@@ -187,36 +190,36 @@ public:
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
         uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF); // 32-bit tag completing 96-bit composite fingerprint
 
-        // --- Fast Path: 2-Choice Stash Hit (96-bit Fingerprint Match) ---
-        if (use_stash && stash_count > 0 && stash_table_size > 0) {
-            int slot1 = (int)(h1 & stash_mask);
-            if (stash_keys[slot1] == h[0] && stash_tags[slot1] == tag) {
-                stash_exact[slot1] += count;
-                return;
-            }
-            int slot2 = (int)(h2 & stash_mask);
-            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
-            if (stash_keys[slot2] == h[0] && stash_tags[slot2] == tag) {
-                stash_exact[slot2] += count;
+        // --- Fast Path: Fully Associative Stash Hit ---
+        if (use_stash && stash_count > 0) {
+            int slot = find_stash_slot(h[0], tag);
+            if (slot >= 0) {
+                uint64_t new_exact = (uint64_t)stash_exact[slot] + (uint64_t)count;
+                stash_exact[slot] = (new_exact > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)new_exact;
                 return;
             }
         }
 
-        // --- HLL Cardinality Update ---
-        int hll_reg_idx = (int)(h1 % hll_m);
-        int clz = (h[1] == 0) ? 64 : __builtin_clzll(h[1]);
-        update_hll(hll_reg_idx, clz + 1);
+        // --- HLL Cardinality Update (Aligned bit-for-bit with Python) ---
+        int rem = 64 - hll_p;
+        int hll_reg_idx = (int)(h[1] >> rem) & (hll_m - 1);
+        uint64_t w_bits = h[1] & ((1ULL << rem) - 1);
+        int rank = (w_bits == 0) ? (rem + 1) : (__builtin_clzll(w_bits) - hll_p + 1);
+        if (rank > 63) rank = 63;
+        update_hll(hll_reg_idx, rank);
 
         // --- Matrix Conservative Update ---
-        uint32_t v_min = 0xFFFFFFFF;
-        uint32_t indices[16];
+        uint32_t v_min = 0xFFFFFFFFU;
+        uint32_t indices[64];
         for (int j = 0; j < depth; j++) {
             indices[j] = (h1 + j * h2) % width;
             uint32_t v = get_cell(j, indices[j]);
             if (v < v_min) v_min = v;
         }
 
-        uint32_t v_target = (v_min + count > (uint32_t)max_val) ? max_val : (v_min + count);
+        uint64_t v_target_64 = (uint64_t)v_min + (uint64_t)count;
+        uint32_t v_target = (v_target_64 > (uint64_t)max_val) ? max_val : (uint32_t)v_target_64;
+
         for (int j = 0; j < depth; j++) {
             uint32_t cur = get_cell(j, indices[j]);
             if (cur < v_target) {
@@ -224,58 +227,63 @@ public:
             }
         }
 
-        // --- Stash Admission & Eviction ---
-        // An item qualifies for promotion when its post-increment count v_target reaches threshold tau (default tau = 15)
-        if (use_stash && stash_table_size > 0 && v_target >= tau) {
-            int slot1 = (int)(h1 & stash_mask);
-            int slot2 = (int)(h2 & stash_mask);
-            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
-
-            if ((stash_keys[slot1] == h[0] && stash_tags[slot1] == tag) ||
-                (stash_keys[slot2] == h[0] && stash_tags[slot2] == tag)) {
+        // --- Fully Associative Stash Admission & Eviction ---
+        // An item qualifies for promotion when candidate frequency v_target reaches tau
+        if (use_stash && stash_cap > 0 && v_target >= tau) {
+            if (find_stash_slot(h[0], tag) >= 0) {
                 return;
             }
 
-            if (stash_keys[slot1] == 0) {
-                stash_keys[slot1] = h[0];
-                stash_tags[slot1] = tag;
-                stash_base[slot1] = v_target;
-                stash_exact[slot1] = 0;
-                stash_count++;
-                stash_insertions++;
-            } else if (stash_keys[slot2] == 0) {
-                stash_keys[slot2] = h[0];
-                stash_tags[slot2] = tag;
-                stash_base[slot2] = v_target;
-                stash_exact[slot2] = 0;
-                stash_count++;
-                stash_insertions++;
-            } else {
-                // 2-choice eviction policy: compare slot1 vs slot2
-                int evict_slot = (stash_base[slot1] + stash_exact[slot1] <= stash_base[slot2] + stash_exact[slot2]) ? slot1 : slot2;
-                uint32_t min_tot = stash_base[evict_slot] + stash_exact[evict_slot];
-
-                if (v_target > min_tot) {
-                    // Evict min candidate and write back to matrix
-                    uint64_t evict_h = stash_keys[evict_slot];
-                    uint32_t eh1 = (uint32_t)(evict_h & 0xFFFFFFFF);
-                    uint32_t eh2 = (uint32_t)((evict_h >> 32) & 0xFFFFFFFF) | 1;
-                    uint32_t wb_val = (min_tot > (uint32_t)max_val) ? max_val : min_tot;
-
-                    for (int j = 0; j < depth; j++) {
-                        uint32_t idx = (eh1 + j * eh2) % width;
-                        uint32_t cur = get_cell(j, idx);
-                        if (wb_val > cur) set_cell(j, idx, wb_val);
+            // Case A: Stash not full - admit into first empty slot
+            if (stash_count < stash_cap) {
+                for (int i = 0; i < stash_cap; i++) {
+                    if (!stash_occupied[i]) {
+                        stash_keys[i] = h[0];
+                        stash_tags[i] = tag;
+                        stash_base[i] = v_target;
+                        stash_exact[i] = 0;
+                        stash_occupied[i] = 1;
+                        stash_count++;
+                        stash_insertions++;
+                        return;
                     }
-
-                    stash_keys[evict_slot] = h[0];
-                    stash_tags[evict_slot] = tag;
-                    stash_base[evict_slot] = v_target;
-                    stash_exact[evict_slot] = 0;
-                    stash_evictions++;
-                } else {
-                    stash_rejections++;
                 }
+            }
+
+            // Case B: Stash full - globally find non-saturated victim with minimum total count
+            int evict_slot = -1;
+            uint64_t min_tot = UINT64_MAX;
+            for (int i = 0; i < stash_cap; i++) {
+                if (stash_occupied[i]) {
+                    uint64_t tot = (uint64_t)stash_base[i] + (uint64_t)stash_exact[i];
+                    if (tot < (uint64_t)max_val && tot < min_tot) {
+                        min_tot = tot;
+                        evict_slot = i;
+                    }
+                }
+            }
+
+            if (evict_slot >= 0 && (uint64_t)v_target > min_tot) {
+                // Lossless monotonic write-back to matrix
+                uint64_t evict_h = stash_keys[evict_slot];
+                uint32_t eh1 = (uint32_t)(evict_h & 0xFFFFFFFF);
+                uint32_t eh2 = (uint32_t)((evict_h >> 32) & 0xFFFFFFFF) | 1;
+                uint32_t wb_val = (min_tot > (uint64_t)max_val) ? max_val : (uint32_t)min_tot;
+
+                for (int j = 0; j < depth; j++) {
+                    uint32_t idx = (eh1 + j * eh2) % width;
+                    uint32_t cur = get_cell(j, idx);
+                    if (wb_val > cur) set_cell(j, idx, wb_val);
+                }
+
+                stash_keys[evict_slot] = h[0];
+                stash_tags[evict_slot] = tag;
+                stash_base[evict_slot] = v_target;
+                stash_exact[evict_slot] = 0;
+                stash_occupied[evict_slot] = 1;
+                stash_evictions++;
+            } else {
+                stash_rejections++;
             }
         }
     }
@@ -288,15 +296,15 @@ public:
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
         uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF);
 
-        if (use_stash && stash_count > 0 && stash_table_size > 0) {
-            int slot1 = (int)(h1 & stash_mask);
-            if (stash_keys[slot1] == h[0] && stash_tags[slot1] == tag) return stash_base[slot1] + stash_exact[slot1];
-            int slot2 = (int)(h2 & stash_mask);
-            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
-            if (stash_keys[slot2] == h[0] && stash_tags[slot2] == tag) return stash_base[slot2] + stash_exact[slot2];
+        if (use_stash && stash_count > 0) {
+            int slot = find_stash_slot(h[0], tag);
+            if (slot >= 0) {
+                uint64_t tot = (uint64_t)stash_base[slot] + (uint64_t)stash_exact[slot];
+                return (tot > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)tot;
+            }
         }
 
-        uint32_t v_min = 0xFFFFFFFF;
+        uint32_t v_min = 0xFFFFFFFFU;
         for (int j = 0; j < depth; j++) {
             uint32_t idx = (h1 + j * h2) % width;
             uint32_t val = get_cell(j, idx);
@@ -305,6 +313,7 @@ public:
         return v_min;
     }
 
+    // Zero false negatives guaranteed: AMQ returns true iff in stash or all d matrix cells > 0
     bool contains(const char* key, int len) const {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
@@ -313,20 +322,13 @@ public:
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
         uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF);
 
-        if (use_stash && stash_count > 0 && stash_table_size > 0) {
-            int slot1 = (int)(h1 & stash_mask);
-            if (stash_keys[slot1] == h[0] && stash_tags[slot1] == tag) return true;
-            int slot2 = (int)(h2 & stash_mask);
-            if (slot2 == slot1) slot2 = (slot1 + 1) & (int)stash_mask;
-            if (stash_keys[slot2] == h[0] && stash_tags[slot2] == tag) return true;
+        if (use_stash && stash_count > 0) {
+            if (find_stash_slot(h[0], tag) >= 0) return true;
         }
-
-        uint32_t theta = (uint32_t)std::min(254.0, floor(log((double)total_volume / (double)width + 1.0) + 1.0));
-        if (theta < 1) theta = 1;
 
         for (int j = 0; j < depth; j++) {
             uint32_t idx = (h1 + j * h2) % width;
-            if (get_cell(j, idx) < theta) return false;
+            if (get_cell(j, idx) == 0) return false;
         }
         return true;
     }
@@ -360,18 +362,23 @@ public:
 
     // Top-k heavy hitter extraction directly from stash
     int get_top_k(int k, uint64_t* out_hashes, uint32_t* out_counts) const {
-        if (!use_stash || stash_count == 0 || k <= 0 || stash_table_size == 0) return 0;
+        if (!use_stash || stash_count == 0 || k <= 0) return 0;
 
         std::vector<std::pair<uint32_t, uint64_t>> candidates;
         candidates.reserve(stash_count);
 
-        for (int i = 0; i < stash_table_size; i++) {
-            if (stash_keys[i] != 0) {
-                candidates.push_back({stash_base[i] + stash_exact[i], stash_keys[i]});
+        for (int i = 0; i < stash_cap; i++) {
+            if (stash_occupied[i]) {
+                uint64_t tot = (uint64_t)stash_base[i] + (uint64_t)stash_exact[i];
+                uint32_t c_tot = (tot > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)tot;
+                candidates.push_back({c_tot, stash_keys[i]});
             }
         }
 
-        std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<uint32_t, uint64_t>>());
+        std::sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) {
+            return a.first > b.first;
+        });
+
         int ret_count = std::min((int)candidates.size(), k);
         for (int i = 0; i < ret_count; i++) {
             out_counts[i] = candidates[i].first;
@@ -380,12 +387,12 @@ public:
         return ret_count;
     }
 
+    // Actual allocated memory bytes: matrix + packed HLL + exactly 24 bytes per stash slot
     size_t get_memory_bytes() const {
         size_t mat_b = (size_t)width * depth * (counter_bits / 8);
         size_t hll_b = (size_t)hll_bytes;
-        // 24 bytes per entry: 8B primary key hash + 4B secondary tag (96-bit composite fingerprint) + 4B base + 4B exact + 4B pad
-        size_t st_b = (use_stash && stash_table_size > 0) ? 
-            ((size_t)stash_table_size * 24) : 0;
+        // 24 bytes per slot: 8B key_hash + 4B tag + 4B base + 4B exact + 4B occupied status
+        size_t st_b = (use_stash && stash_cap > 0) ? ((size_t)stash_cap * 24) : 0;
         return mat_b + hll_b + st_b;
     }
 };
@@ -412,8 +419,8 @@ public:
         uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
 
-        uint32_t v_min = 0xFFFFFFFF;
-        uint32_t indices[16];
+        uint32_t v_min = 0xFFFFFFFFU;
+        uint32_t indices[64];
         for (int j = 0; j < depth; j++) {
             indices[j] = (h1 + j * h2) % width;
             uint32_t v = table[j * width + indices[j]];
@@ -435,7 +442,7 @@ public:
         uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
         uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
 
-        uint32_t v_min = 0xFFFFFFFF;
+        uint32_t v_min = 0xFFFFFFFFU;
         for (int j = 0; j < depth; j++) {
             uint32_t idx = (h1 + j * h2) % width;
             uint32_t v = table[j * width + idx];
@@ -512,10 +519,12 @@ public:
     void add(const char* key, int len) {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        int idx = (int)(h[0] & (m - 1));
-        int clz = (h[1] == 0) ? 64 : __builtin_clzll(h[1]);
-        uint8_t rank = (uint8_t)(clz + 1);
-        if (rank > registers[idx]) registers[idx] = rank;
+        int rem = 64 - p;
+        int idx = (int)(h[1] >> rem) & (m - 1);
+        uint64_t w_bits = h[1] & ((1ULL << rem) - 1);
+        int rank = (w_bits == 0) ? (rem + 1) : (__builtin_clzll(w_bits) - p + 1);
+        if (rank > 63) rank = 63;
+        if (rank > registers[idx]) registers[idx] = (uint8_t)rank;
     }
 
     double cardinality() const {

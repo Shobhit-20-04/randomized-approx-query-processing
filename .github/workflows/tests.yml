@@ -15,6 +15,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
 
+    env:
+      CI: "true"
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -34,9 +37,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p core
-          g++ -std=c++17 -O3 -mavx2 -shared -fPIC -Isrc/cpp/core -Isrc/cpp/hashing -Icore -o core/libadalog_core.so src/cpp/core/adalog_core.cpp
+          bash scripts/build/build_core.sh
 
-      - name: Run Unit Tests
+      - name: Build Native C++ Engine (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call scripts\build\build_core.bat
+
+      - name: Run Unit & Differential Tests
         run: |
           pytest -v tests/
 

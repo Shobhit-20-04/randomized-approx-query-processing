@@ -3,11 +3,12 @@ AdaLog-Sketch Unified Data Structure.
 Integrates Membership (AMQ), Frequency (CMS-CU), Cardinality (HLL), and Heavy Hitters
 into a single shared memory block and single 128-bit hash pipeline per item.
 All modules are fully switchable for systematic ablation testing.
+Supports arbitrary string and binary keys.
 """
 
 from __future__ import annotations
 import math
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, Union
 import numpy as np
 
 from adalog.hash_utils import hash128, get_matrix_indices, get_hll_index_and_rank
@@ -15,6 +16,7 @@ from adalog.stash import ElephantStash
 from adalog.hll_packed import PackedHLLRegisters
 from adalog.compression import compress_matrix, decompress_matrix
 
+KeyType = Union[str, bytes]
 
 class AdaLogSketch:
     def __init__(
@@ -30,7 +32,7 @@ class AdaLogSketch:
         stash_tau: Optional[int] = None,
         use_conservative_update: bool = True,  # Switchable ablation
         membership_variant: str = "A",         # "A" (shared counters > 0) or "B" (1-bit presence plane)
-        hll_layout: str = "coupled",           # "coupled" (m = w) or "decoupled" (m = 2^p)
+        hll_layout: str = "decoupled",         # "coupled" (m = w) or "decoupled" (m = 2^p)
         hll_p: int = 10,                       # used if decoupled
         m: Optional[int] = None,
         seed: int = 42,
@@ -97,27 +99,24 @@ class AdaLogSketch:
         else:
             self.stash = None
 
-    def update(self, key: str | bytes, count: int = 1) -> None:
+    def update(self, key: KeyType, count: int = 1) -> None:
         if count <= 0:
             return
         self.total_volume += count
-        str_key = key if isinstance(key, str) else key.decode("utf-8", "replace")
 
-        # FAST PATH: Stash hit
-        if self.use_stash and self.stash.update_if_present(str_key, count):
+        # FAST PATH: Stash hit (preserves binary or string key without lossy decoding)
+        if self.use_stash and self.stash.update_if_present(key, count):
             return
 
-        # Single 128-bit hash computation
+        # Single 128-bit hash computation (MurmurHash3-x64-128)
         h_low, h_high = hash128(key, seed=self.seed)
 
-        # 1. Derive d matrix row indices via Kirsch-Mitzenmacher
+        # 1. Derive d matrix row indices via Kirsch-Mitzenmacher double hashing
         indices = get_matrix_indices(h_low, self.depth, self.width)
 
         # 2. Update HLL registers from high hash bits
         if self.hll_layout == "coupled":
-            # Primary column idx_0 selects HLL register
             reg_idx = indices[0] % self.hll_m
-            # Leading zeros from remaining hash bits
             _, rank = get_hll_index_and_rank(h_high, 0)
             self.hll_registers.update_register(reg_idx, rank)
         else:
@@ -144,12 +143,13 @@ class AdaLogSketch:
                 self.table[j, indices[j]] = min(self.max_val, cur + count)
             est_after = min(int(self.table[j, indices[j]]) for j in range(self.depth))
 
-        # 5. Check Stash Promotion
+        # 5. Check Stash Promotion (candidate frequency v_target >= tau)
         if self.use_stash and est_after >= self.stash.threshold:
-            eviction = self.stash.promote(str_key, est_after)
+            tag = int(h_high & 0xFFFFFFFF)
+            eviction = self.stash.promote(key, est_after, tag=tag)
             if eviction is not None:
                 evict_key, evict_count = eviction
-                # Write-back into base table with max()
+                # Lossless write-back into matrix with max()
                 h_evict_low, _ = hash128(evict_key, seed=self.seed)
                 evict_indices = get_matrix_indices(h_evict_low, self.depth, self.width)
                 bounded_evict = min(self.max_val, evict_count)
@@ -162,14 +162,13 @@ class AdaLogSketch:
         for k in keys:
             self.update(k, count)
 
-    def contains(self, key: str | bytes) -> bool:
+    def contains(self, key: KeyType) -> bool:
         """
         Approximate Membership Query (AMQ).
-        Variant A: True iff all d counters > 0 (shared counters, 0 marginal bytes).
+        Variant A: True iff in stash or all d counters > 0 (guarantees zero false negatives).
         Variant B: True iff all d bits are set in presence plane.
         """
-        str_key = key if isinstance(key, str) else key.decode("utf-8", "replace")
-        if self.use_stash and self.stash.contains(str_key):
+        if self.use_stash and self.stash.contains(key):
             return True
 
         h_low, _ = hash128(key, seed=self.seed)
@@ -181,23 +180,22 @@ class AdaLogSketch:
                     return False
             return True
         else:
-            # Variant A: counting-Bloom style check on base matrix
+            # Variant A: counting-Bloom style check on base matrix (all d counters > 0)
             for j in range(self.depth):
                 if self.table[j, indices[j]] == 0:
                     return False
             return True
 
-    def __contains__(self, key: str | bytes) -> bool:
+    def __contains__(self, key: KeyType) -> bool:
         return self.contains(key)
 
-    def estimate(self, key: str | bytes) -> int:
+    def estimate(self, key: KeyType) -> int:
         """
         Point Frequency Query.
-        Never underestimates true count (Theorem 2).
+        Never underestimates true count under K >= K_sat* (Theorem 2).
         """
-        str_key = key if isinstance(key, str) else key.decode("utf-8", "replace")
         if self.use_stash:
-            stash_val = self.stash.get_count(str_key)
+            stash_val = self.stash.get_count(key)
             if stash_val is not None:
                 return stash_val
 
@@ -205,7 +203,7 @@ class AdaLogSketch:
         indices = get_matrix_indices(h_low, self.depth, self.width)
         return min(int(self.table[j, indices[j]]) for j in range(self.depth))
 
-    def query(self, key: str | bytes) -> int:
+    def query(self, key: KeyType) -> int:
         return self.estimate(key)
 
     def cardinality(self) -> float:
@@ -214,25 +212,31 @@ class AdaLogSketch:
         """
         return self.hll_registers.estimate_cardinality()
 
-    def top_k(self, k: int = 10) -> list[tuple[str, int]]:
+    def top_k(self, k: int = 10) -> List[Tuple[KeyType, int]]:
         """
-        Heavy-Hitter Query in O(K) time without scanning universe.
+        Heavy-Hitter Query in O(K log k) time from resident stash entries.
         """
         if self.use_stash:
             return self.stash.top_k(k)
         return []
 
-    def memory_usage_bytes(self) -> int:
+    def logical_memory_bytes(self) -> int:
         """
-        Returns exact in-memory RAM usage (matrix + stash + HLL registers + presence plane).
+        Theoretical planned hardware layout:
+        matrix + packed HLL (768 B) + stash (K * 24 B).
+        At 32 KB budget with K=128: exactly 32,768 bytes.
         """
         total = self.table.nbytes
         total += self.hll_registers.memory_usage_bytes()
         if self.use_stash:
-            total += self.stash.memory_usage_bytes()
+            total += self.stash.logical_memory_bytes()
         if self.membership_variant == "B":
             total += len(self.presence_plane)
         return total
+
+    def memory_usage_bytes(self) -> int:
+        """Returns the logical hardware layout allocation."""
+        return self.logical_memory_bytes()
 
     def compress_wire(self, group_size: int = 8) -> bytes:
         """
@@ -242,11 +246,11 @@ class AdaLogSketch:
 
     def compute_metrics(
         self,
-        ground_truth_freqs: dict[str, int],
+        ground_truth_freqs: Dict[KeyType, int],
         true_cardinality: int,
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         """
-        Computes comprehensive evaluation metrics against exact ground truth.
+        Computes evaluation metrics against ground truth.
         """
         errors = []
         rel_errors = []
@@ -272,5 +276,5 @@ class AdaLogSketch:
             "underestimates_count": underestimates,
             "estimated_cardinality": est_card,
             "cardinality_relative_error": card_rse,
-            "memory_bytes": self.memory_usage_bytes(),
+            "memory_bytes": self.logical_memory_bytes(),
         }
