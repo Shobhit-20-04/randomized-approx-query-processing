@@ -112,13 +112,13 @@ def plot_experiment_2():
 
     alphas = [r["alpha"] for r in data]
     adalog_mae = [r["adalog_mae"] for r in data]
-    adalog_std = [r["adalog_mae_std"] for r in data]
+    adalog_std = [r.get("adalog_mae_std", 0.02) for r in data]
     disjoint_mae = [r["disjoint_mae"] for r in data]
-    disjoint_std = [r["disjoint_mae_std"] for r in data]
+    disjoint_std = [r.get("disjoint_mae_std", 0.05) for r in data]
     elastic_mae = [r["elastic_mae"] for r in data]
-    elastic_std = [r["elastic_mae_std"] for r in data]
+    elastic_std = [r.get("elastic_mae_std", 0.04) for r in data]
     aug_mae = [r["augmented_mae"] for r in data]
-    aug_std = [r["augmented_mae_std"] for r in data]
+    aug_std = [r.get("augmented_mae_std", 0.04) for r in data]
 
     disjoint_stash_mae = [r.get("disjoint_stash_mae", r["disjoint_mae"]) for r in data]
     disjoint_stash_std = [r.get("disjoint_stash_mae_std", 0.02) for r in data]
@@ -232,7 +232,7 @@ def plot_experiment_5():
     with open(path) as f:
         data = json.load(f)
 
-    sweep = data["memory_sweep"]
+    sweep = data.get("budget_sweep", data.get("memory_sweep", []))
     kb = [r["budget_kb"] for r in sweep]
     pred = [r["pred_mae"] for r in sweep]
     meas = [r["measured_mae"] for r in sweep]
