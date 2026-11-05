@@ -1,3 +1,7 @@
+> [!NOTE]
+> **HISTORICAL ARCHIVE NOTICE (Phase 1-3 Audit)**: This document reflects preliminary forensic audits conducted prior to the definitive codebase repair, 64-bit row-index integer overflow corrections, MurmurHash3 header unification, and Chernoff-Bennett concentration bound derivations.
+> For the authoritative, current technical audit and verification status linked to the latest codebase revision, consult [reports/AdaLog_Final_Technical_Audit.md](../reports/AdaLog_Final_Technical_Audit.md).
+
 # Algorithmic and Empirical Audit Report: AdaLog-Sketch
 
 **Document Version:** 1.0.0  

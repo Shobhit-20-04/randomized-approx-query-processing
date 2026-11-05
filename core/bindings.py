@@ -47,11 +47,6 @@ except Exception:
 def is_dll_available() -> bool:
     return lib is not None
 
-try:
-    lib = ctypes.CDLL(DLL_PATH) if DLL_PATH else None
-except Exception:
-    lib = None
-
 if lib:
     # Function prototypes
     lib.adalog_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
@@ -63,11 +58,11 @@ if lib:
     lib.adalog_destroy.argtypes = [ctypes.c_void_p]
     lib.adalog_destroy.restype = None
 
-    lib.adalog_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32]
+    lib.adalog_update.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint64]
     lib.adalog_update.restype = None
 
     lib.adalog_estimate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-    lib.adalog_estimate.restype = ctypes.c_uint32
+    lib.adalog_estimate.restype = ctypes.c_uint64
 
     lib.adalog_contains.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     lib.adalog_contains.restype = ctypes.c_bool
@@ -75,7 +70,7 @@ if lib:
     lib.adalog_cardinality.argtypes = [ctypes.c_void_p]
     lib.adalog_cardinality.restype = ctypes.c_double
 
-    lib.adalog_top_k.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint32)]
+    lib.adalog_top_k.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]
     lib.adalog_top_k.restype = ctypes.c_int
 
     lib.adalog_get_stash_count.argtypes = [ctypes.c_void_p]
@@ -92,6 +87,9 @@ if lib:
 
     lib.adalog_hash128.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]
     lib.adalog_hash128.restype = None
+
+    lib.adalog_get_matrix_indices.argtypes = [ctypes.c_uint64, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_uint32)]
+    lib.adalog_get_matrix_indices.restype = None
 
     # CMS prototypes
     lib.cms_create.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint32]
@@ -138,10 +136,12 @@ class CompiledAdaLog:
         seed: int = 42,
     ):
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         self._ptr = lib.adalog_create_full(
             width, depth, counter_bits, stash_capacity, elephant_threshold, hll_m, seed
         )
+        if not self._ptr:
+            raise ValueError(f"Failed to initialize AdaLogCore with parameters (w={width}, d={depth}, bits={counter_bits}, scap={stash_capacity})")
 
     def __del__(self):
         if hasattr(self, "_ptr") and self._ptr and lib:
@@ -179,7 +179,7 @@ class CompiledAdaLog:
 
     def top_k(self, k: int) -> list[tuple[int, int]]:
         out_hashes = (ctypes.c_uint64 * k)()
-        out_counts = (ctypes.c_uint32 * k)()
+        out_counts = (ctypes.c_uint64 * k)()
         n = lib.adalog_top_k(self._ptr, k, out_hashes, out_counts)
         return [(int(out_hashes[i]), int(out_counts[i])) for i in range(n)]
 
@@ -196,19 +196,29 @@ class CompiledAdaLog:
     @staticmethod
     def hash128(key: str | bytes, seed: int = 42) -> tuple[int, int]:
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         kb = key.encode("utf-8") if isinstance(key, str) else key
         h1 = ctypes.c_uint64()
         h2 = ctypes.c_uint64()
         lib.adalog_hash128(kb, len(kb), seed, ctypes.byref(h1), ctypes.byref(h2))
         return (int(h1.value), int(h2.value))
 
+    @staticmethod
+    def get_matrix_indices(h_low: int, depth: int, width: int) -> list[int]:
+        if not lib:
+            raise RuntimeError("adalog_core library is not loaded")
+        out_indices = (ctypes.c_uint32 * depth)()
+        lib.adalog_get_matrix_indices(ctypes.c_uint64(h_low), depth, width, out_indices)
+        return [int(out_indices[i]) for i in range(depth)]
+
 
 class CompiledCMS:
     def __init__(self, width: int = 1024, depth: int = 4, seed: int = 42):
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         self._ptr = lib.cms_create(width, depth, seed)
+        if not self._ptr:
+            raise ValueError("Failed to create CMSCore with given parameters")
 
     def __del__(self):
         if hasattr(self, "_ptr") and self._ptr and lib:
@@ -223,8 +233,10 @@ class CompiledCMS:
 class CompiledBloom:
     def __init__(self, m_bits: int = 8192, k_hashes: int = 7, seed: int = 42):
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         self._ptr = lib.bloom_create(m_bits, k_hashes, seed)
+        if not self._ptr:
+            raise ValueError("Failed to create BloomCore with given parameters")
 
     def __del__(self):
         if hasattr(self, "_ptr") and self._ptr and lib:
@@ -239,8 +251,10 @@ class CompiledBloom:
 class CompiledHLL:
     def __init__(self, p: int = 10, seed: int = 42):
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         self._ptr = lib.hll_create(p, seed)
+        if not self._ptr:
+            raise ValueError("Failed to create HLLCore with given parameters")
 
     def __del__(self):
         if hasattr(self, "_ptr") and self._ptr and lib:
@@ -255,8 +269,10 @@ class CompiledHLL:
 class CompiledDisjoint:
     def __init__(self, bf_m: int = 8192, bf_k: int = 7, cms_w: int = 1024, cms_d: int = 4, hll_p: int = 10, seed: int = 42):
         if not lib:
-            raise RuntimeError("adalog_core.dll is not loaded")
+            raise RuntimeError("adalog_core library is not loaded")
         self._ptr = lib.disjoint_create(bf_m, bf_k, cms_w, cms_d, hll_p, seed)
+        if not self._ptr:
+            raise ValueError("Failed to create DisjointCore with given parameters")
 
     def __del__(self):
         if hasattr(self, "_ptr") and self._ptr and lib:

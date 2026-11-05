@@ -1,5 +1,5 @@
-#ifndef HASH_XXH3_H
-#define HASH_XXH3_H
+#ifndef HASH_MURMUR3_H
+#define HASH_MURMUR3_H
 
 #include <cstdint>
 #include <cstring>
@@ -74,4 +74,4 @@ inline void murmur3_128(const void* key, const int len, const uint32_t seed, uin
     out[1] = h2;
 }
 
-#endif // HASH_XXH3_H
+#endif // HASH_MURMUR3_H

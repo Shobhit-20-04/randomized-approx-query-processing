@@ -6,18 +6,18 @@
 #include <string>
 #include <algorithm>
 #include <stdexcept>
-#include "hash_xxh3.h"
+#include "hash_murmur3.h"
 
 // ============================================================================
 // 1. RE-ENGINEERED ADALOG CORE (C++17)
 // ============================================================================
 
 struct StashItem {
-    uint64_t key_hash;
-    uint32_t tag;
-    uint32_t base_count;
-    uint32_t exact_count;
-    uint32_t is_occupied; // 24 bytes per entry: 8B primary hash + 4B secondary tag + 4B base + 4B exact + 4B status
+    uint64_t key_hash;    // 8 bytes: primary 64-bit hash
+    uint32_t tag;         // 4 bytes: secondary 32-bit tag (96-bit composite fingerprint)
+    uint32_t base_count;  // 4 bytes: baseline matrix counter value at promotion
+    uint64_t exact_count; // 8 bytes: 64-bit exact increments while resident in stash
+    // Total: exactly 24 bytes per entry, natural 8-byte alignment.
 };
 
 class AdaLogCore {
@@ -45,8 +45,8 @@ public:
     uint64_t* stash_keys;
     uint32_t* stash_tags;
     uint32_t* stash_base;
-    uint32_t* stash_exact;
-    uint32_t* stash_occupied; // 0 = empty, 1 = occupied (never relies on hash 0)
+    uint64_t* stash_exact;    // 64-bit exact counter: prevents 32-bit integer overflow
+    uint8_t* stash_occupied;  // 1 = occupied, 0 = empty
     int stash_count;
     uint64_t stash_insertions;
     uint64_t stash_evictions;
@@ -60,8 +60,29 @@ public:
           use_stash(scap > 0), stash_cap(scap), tau(thresh),
           stash_count(0), stash_insertions(0), stash_evictions(0), stash_rejections(0)
     {
-        if (depth <= 0 || depth > 64) {
+        // Parameter Validation
+        if (w <= 0) {
+            throw std::invalid_argument("AdaLogCore width must be positive");
+        }
+        if (d <= 0 || d > 64) {
             throw std::invalid_argument("AdaLogCore depth must be between 1 and 64");
+        }
+        if (bits != 8 && bits != 16 && bits != 32) {
+            throw std::invalid_argument("AdaLogCore counter_bits must be 8, 16, or 32");
+        }
+        if (scap < 0) {
+            throw std::invalid_argument("AdaLogCore stash_capacity cannot be negative");
+        }
+        if (thresh < 0) {
+            throw std::invalid_argument("AdaLogCore tau cannot be negative");
+        }
+        if (hll_regs <= 0) {
+            throw std::invalid_argument("AdaLogCore hll_regs must be positive");
+        }
+
+        uint64_t total_cells = (uint64_t)w * (uint64_t)d;
+        if (total_cells / (uint64_t)w != (uint64_t)d || total_cells > 2000000000ULL) {
+            throw std::invalid_argument("AdaLogCore matrix allocation size overflow");
         }
 
         // 1. Configure Counter Matrix
@@ -76,7 +97,7 @@ public:
             table16 = (uint16_t*)calloc(w * d, sizeof(uint16_t));
             table32 = nullptr;
         } else {
-            max_val = 0xFFFFFFFFU; // Full unsigned 32-bit maximum
+            max_val = 0xFFFFFFFFU;
             table8 = nullptr;
             table16 = nullptr;
             table32 = (uint32_t*)calloc(w * d, sizeof(uint32_t));
@@ -87,8 +108,8 @@ public:
             stash_keys = (uint64_t*)calloc(stash_cap, sizeof(uint64_t));
             stash_tags = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
             stash_base = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
-            stash_exact = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
-            stash_occupied = (uint32_t*)calloc(stash_cap, sizeof(uint32_t));
+            stash_exact = (uint64_t*)calloc(stash_cap, sizeof(uint64_t));
+            stash_occupied = (uint8_t*)calloc(stash_cap, sizeof(uint8_t));
         } else {
             stash_keys = nullptr;
             stash_tags = nullptr;
@@ -179,23 +200,23 @@ public:
         return -1;
     }
 
-    void update(const char* key, int len, uint32_t count) {
+    void update(const char* key, int len, uint64_t count) {
         if (count <= 0) return;
         total_volume += count;
 
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
-        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF); // 32-bit tag completing 96-bit composite fingerprint
+        // 64-bit arithmetic prevents intermediate 32-bit integer overflow before modulo
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
+        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFFULL); // 32-bit tag completing 96-bit composite fingerprint
 
         // --- Fast Path: Fully Associative Stash Hit ---
         if (use_stash && stash_count > 0) {
             int slot = find_stash_slot(h[0], tag);
             if (slot >= 0) {
-                uint64_t new_exact = (uint64_t)stash_exact[slot] + (uint64_t)count;
-                stash_exact[slot] = (new_exact > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)new_exact;
+                stash_exact[slot] += (uint64_t)count; // 64-bit exact tracking without 32-bit clipping
                 return;
             }
         }
@@ -208,11 +229,11 @@ public:
         if (rank > 63) rank = 63;
         update_hll(hll_reg_idx, rank);
 
-        // --- Matrix Conservative Update ---
+        // --- Matrix Conservative Update with 64-bit Index Calculation ---
         uint32_t v_min = 0xFFFFFFFFU;
         uint32_t indices[64];
         for (int j = 0; j < depth; j++) {
-            indices[j] = (h1 + j * h2) % width;
+            indices[j] = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
             uint32_t v = get_cell(j, indices[j]);
             if (v < v_min) v_min = v;
         }
@@ -228,20 +249,20 @@ public:
         }
 
         // --- Fully Associative Stash Admission & Eviction ---
-        // An item qualifies for promotion when candidate frequency v_target reaches tau
-        if (use_stash && stash_cap > 0 && v_target >= tau) {
+        // An item qualifies for promotion when candidate frequency reaches tau: v_min + count >= tau
+        if (use_stash && stash_cap > 0 && v_target_64 >= (uint64_t)tau) {
             if (find_stash_slot(h[0], tag) >= 0) {
                 return;
             }
 
-            // Case A: Stash not full - admit into first empty slot
+            // Case A: Stash not full - admit into first open slot
             if (stash_count < stash_cap) {
                 for (int i = 0; i < stash_cap; i++) {
                     if (!stash_occupied[i]) {
                         stash_keys[i] = h[0];
                         stash_tags[i] = tag;
-                        stash_base[i] = v_target;
-                        stash_exact[i] = 0;
+                        stash_base[i] = (v_min > max_val) ? max_val : v_min;
+                        stash_exact[i] = (uint64_t)count;
                         stash_occupied[i] = 1;
                         stash_count++;
                         stash_insertions++;
@@ -255,7 +276,7 @@ public:
             uint64_t min_tot = UINT64_MAX;
             for (int i = 0; i < stash_cap; i++) {
                 if (stash_occupied[i]) {
-                    uint64_t tot = (uint64_t)stash_base[i] + (uint64_t)stash_exact[i];
+                    uint64_t tot = (uint64_t)stash_base[i] + stash_exact[i];
                     if (tot < (uint64_t)max_val && tot < min_tot) {
                         min_tot = tot;
                         evict_slot = i;
@@ -263,23 +284,24 @@ public:
                 }
             }
 
-            if (evict_slot >= 0 && (uint64_t)v_target > min_tot) {
-                // Lossless monotonic write-back to matrix
+            uint64_t candidate_tot = (uint64_t)v_min + (uint64_t)count;
+            if (evict_slot >= 0 && candidate_tot > min_tot) {
+                // Lossless monotonic write-back to matrix using 64-bit row indexing
                 uint64_t evict_h = stash_keys[evict_slot];
-                uint32_t eh1 = (uint32_t)(evict_h & 0xFFFFFFFF);
-                uint32_t eh2 = (uint32_t)((evict_h >> 32) & 0xFFFFFFFF) | 1;
+                uint64_t eh1 = (uint64_t)(evict_h & 0xFFFFFFFFULL);
+                uint64_t eh2 = (uint64_t)((evict_h >> 32) & 0xFFFFFFFFULL) | 1ULL;
                 uint32_t wb_val = (min_tot > (uint64_t)max_val) ? max_val : (uint32_t)min_tot;
 
                 for (int j = 0; j < depth; j++) {
-                    uint32_t idx = (eh1 + j * eh2) % width;
+                    uint32_t idx = (uint32_t)((eh1 + (uint64_t)j * eh2) % (uint64_t)width);
                     uint32_t cur = get_cell(j, idx);
                     if (wb_val > cur) set_cell(j, idx, wb_val);
                 }
 
                 stash_keys[evict_slot] = h[0];
                 stash_tags[evict_slot] = tag;
-                stash_base[evict_slot] = v_target;
-                stash_exact[evict_slot] = 0;
+                stash_base[evict_slot] = (v_min > max_val) ? max_val : v_min;
+                stash_exact[evict_slot] = (uint64_t)count;
                 stash_occupied[evict_slot] = 1;
                 stash_evictions++;
             } else {
@@ -288,29 +310,28 @@ public:
         }
     }
 
-    uint32_t estimate(const char* key, int len) const {
+    uint64_t estimate(const char* key, int len) const {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
-        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF);
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
+        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFFULL);
 
         if (use_stash && stash_count > 0) {
             int slot = find_stash_slot(h[0], tag);
             if (slot >= 0) {
-                uint64_t tot = (uint64_t)stash_base[slot] + (uint64_t)stash_exact[slot];
-                return (tot > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)tot;
+                return (uint64_t)stash_base[slot] + stash_exact[slot];
             }
         }
 
         uint32_t v_min = 0xFFFFFFFFU;
         for (int j = 0; j < depth; j++) {
-            uint32_t idx = (h1 + j * h2) % width;
+            uint32_t idx = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
             uint32_t val = get_cell(j, idx);
             if (val < v_min) v_min = val;
         }
-        return v_min;
+        return (uint64_t)v_min;
     }
 
     // Zero false negatives guaranteed: AMQ returns true iff in stash or all d matrix cells > 0
@@ -318,16 +339,16 @@ public:
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
 
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
-        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFF);
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
+        uint32_t tag = (uint32_t)(h[1] & 0xFFFFFFFFULL);
 
         if (use_stash && stash_count > 0) {
             if (find_stash_slot(h[0], tag) >= 0) return true;
         }
 
         for (int j = 0; j < depth; j++) {
-            uint32_t idx = (h1 + j * h2) % width;
+            uint32_t idx = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
             if (get_cell(j, idx) == 0) return false;
         }
         return true;
@@ -361,17 +382,16 @@ public:
     }
 
     // Top-k heavy hitter extraction directly from stash
-    int get_top_k(int k, uint64_t* out_hashes, uint32_t* out_counts) const {
+    int get_top_k(int k, uint64_t* out_hashes, uint64_t* out_counts) const {
         if (!use_stash || stash_count == 0 || k <= 0) return 0;
 
-        std::vector<std::pair<uint32_t, uint64_t>> candidates;
+        std::vector<std::pair<uint64_t, uint64_t>> candidates;
         candidates.reserve(stash_count);
 
         for (int i = 0; i < stash_cap; i++) {
             if (stash_occupied[i]) {
-                uint64_t tot = (uint64_t)stash_base[i] + (uint64_t)stash_exact[i];
-                uint32_t c_tot = (tot > 0xFFFFFFFFULL) ? 0xFFFFFFFFU : (uint32_t)tot;
-                candidates.push_back({c_tot, stash_keys[i]});
+                uint64_t tot = (uint64_t)stash_base[i] + stash_exact[i];
+                candidates.push_back({tot, stash_keys[i]});
             }
         }
 
@@ -391,7 +411,7 @@ public:
     size_t get_memory_bytes() const {
         size_t mat_b = (size_t)width * depth * (counter_bits / 8);
         size_t hll_b = (size_t)hll_bytes;
-        // 24 bytes per slot: 8B key_hash + 4B tag + 4B base + 4B exact + 4B occupied status
+        // 24 bytes per entry: 8B key_hash + 4B tag + 4B base + 8B exact = 24B
         size_t st_b = (use_stash && stash_cap > 0) ? ((size_t)stash_cap * 24) : 0;
         return mat_b + hll_b + st_b;
     }
@@ -409,20 +429,23 @@ public:
     uint32_t seed;
 
     CMSCore(int w, int d, uint32_t s) : width(w), depth(d), seed(s) {
+        if (w <= 0 || d <= 0 || d > 64) {
+            throw std::invalid_argument("CMSCore parameters invalid");
+        }
         table = (uint32_t*)calloc(w * d, sizeof(uint32_t));
     }
     ~CMSCore() { free(table); }
 
-    void update(const char* key, int len, uint32_t count) {
+    void update(const char* key, int len, uint64_t count) {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
 
         uint32_t v_min = 0xFFFFFFFFU;
         uint32_t indices[64];
         for (int j = 0; j < depth; j++) {
-            indices[j] = (h1 + j * h2) % width;
+            indices[j] = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
             uint32_t v = table[j * width + indices[j]];
             if (v < v_min) v_min = v;
         }
@@ -439,12 +462,12 @@ public:
     uint32_t estimate(const char* key, int len) const {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
 
         uint32_t v_min = 0xFFFFFFFFU;
         for (int j = 0; j < depth; j++) {
-            uint32_t idx = (h1 + j * h2) % width;
+            uint32_t idx = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
             uint32_t v = table[j * width + idx];
             if (v < v_min) v_min = v;
         }
@@ -464,6 +487,9 @@ public:
     uint8_t* bit_array;
 
     BloomCore(int m, int k, uint32_t s) : m_bits(m), k_hashes(k), seed(s) {
+        if (m <= 0 || k <= 0 || k > 64) {
+            throw std::invalid_argument("BloomCore parameters invalid");
+        }
         bit_array = (uint8_t*)calloc((m + 7) / 8, sizeof(uint8_t));
     }
     ~BloomCore() { free(bit_array); }
@@ -471,11 +497,11 @@ public:
     void add(const char* key, int len) {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
 
         for (int i = 0; i < k_hashes; i++) {
-            uint32_t bit_idx = (h1 + i * h2) % m_bits;
+            uint32_t bit_idx = (uint32_t)((h1 + (uint64_t)i * h2) % (uint64_t)m_bits);
             bit_array[bit_idx >> 3] |= (1 << (bit_idx & 7));
         }
     }
@@ -483,11 +509,11 @@ public:
     bool contains(const char* key, int len) const {
         uint64_t h[2];
         murmur3_128(key, len, seed, h);
-        uint32_t h1 = (uint32_t)(h[0] & 0xFFFFFFFF);
-        uint32_t h2 = (uint32_t)((h[0] >> 32) & 0xFFFFFFFF) | 1;
+        uint64_t h1 = (uint64_t)(h[0] & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h[0] >> 32) & 0xFFFFFFFFULL) | 1ULL;
 
         for (int i = 0; i < k_hashes; i++) {
-            uint32_t bit_idx = (h1 + i * h2) % m_bits;
+            uint32_t bit_idx = (uint32_t)((h1 + (uint64_t)i * h2) % (uint64_t)m_bits);
             if (!(bit_array[bit_idx >> 3] & (1 << (bit_idx & 7)))) return false;
         }
         return true;
@@ -507,6 +533,9 @@ public:
     double alpha;
 
     HLLCore(int precision, uint32_t s) : p(precision), seed(s) {
+        if (p < 4 || p > 18) {
+            throw std::invalid_argument("HLLCore precision must be between 4 and 18");
+        }
         m = 1 << p;
         registers = (uint8_t*)calloc(m, sizeof(uint8_t));
         if (m >= 128) alpha = 0.7213 / (1.0 + 1.079 / m);
@@ -553,7 +582,7 @@ public:
     DisjointCore(int bf_m, int bf_k, int cms_w, int cms_d, int hll_p, uint32_t s)
         : bf(bf_m, bf_k, s), cms(cms_w, cms_d, s ^ 0x55555555), hll(hll_p, s ^ 0xAAAAAAAA) {}
 
-    void update(const char* key, int len, uint32_t count) {
+    void update(const char* key, int len, uint64_t count) {
         bf.add(key, len);
         cms.update(key, len, count);
         hll.add(key, len);
@@ -572,39 +601,55 @@ public:
 
 extern "C" {
     ADALOG_API void* adalog_create(int width, int depth, int bits, int scap, int thresh, uint32_t seed) {
-        return new AdaLogCore(width, depth, bits, scap, thresh, 1024, seed);
+        try {
+            return new AdaLogCore(width, depth, bits, scap, thresh, 1024, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void* adalog_create_full(int width, int depth, int bits, int scap, int thresh, int hll_m, uint32_t seed) {
-        return new AdaLogCore(width, depth, bits, scap, thresh, hll_m, seed);
+        try {
+            return new AdaLogCore(width, depth, bits, scap, thresh, hll_m, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void adalog_destroy(void* ptr) {
         delete (AdaLogCore*)ptr;
     }
-    ADALOG_API void adalog_update(void* ptr, const char* key, int len, uint32_t count) {
-        ((AdaLogCore*)ptr)->update(key, len, count);
+    ADALOG_API void adalog_update(void* ptr, const char* key, int len, uint64_t count) {
+        if (ptr) ((AdaLogCore*)ptr)->update(key, len, count);
     }
-    ADALOG_API uint32_t adalog_estimate(void* ptr, const char* key, int len) {
+    ADALOG_API uint64_t adalog_estimate(void* ptr, const char* key, int len) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->estimate(key, len);
     }
     ADALOG_API bool adalog_contains(void* ptr, const char* key, int len) {
+        if (!ptr) return false;
         return ((AdaLogCore*)ptr)->contains(key, len);
     }
     ADALOG_API double adalog_cardinality(void* ptr) {
+        if (!ptr) return 0.0;
         return ((AdaLogCore*)ptr)->cardinality();
     }
-    ADALOG_API int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint32_t* out_counts) {
+    ADALOG_API int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint64_t* out_counts) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->get_top_k(k, out_hashes, out_counts);
     }
     ADALOG_API int adalog_get_stash_count(void* ptr) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->stash_count;
     }
     ADALOG_API uint64_t adalog_get_stash_evictions(void* ptr) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->stash_evictions;
     }
     ADALOG_API uint64_t adalog_get_stash_rejections(void* ptr) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->stash_rejections;
     }
     ADALOG_API size_t adalog_get_memory_bytes(void* ptr) {
+        if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->get_memory_bytes();
     }
     ADALOG_API void adalog_hash128(const char* key, int len, uint32_t seed, uint64_t* out_h1, uint64_t* out_h2) {
@@ -613,48 +658,85 @@ extern "C" {
         if (out_h1) *out_h1 = h[0];
         if (out_h2) *out_h2 = h[1];
     }
+    // Native row-index function (Issue 2)
+    ADALOG_API void adalog_get_matrix_indices(uint64_t h_low, int depth, int width, uint32_t* out_indices) {
+        if (width <= 0 || depth <= 0 || !out_indices) return;
+        uint64_t h1 = (uint64_t)(h_low & 0xFFFFFFFFULL);
+        uint64_t h2 = (uint64_t)((h_low >> 32) & 0xFFFFFFFFULL) | 1ULL;
+        for (int j = 0; j < depth; j++) {
+            out_indices[j] = (uint32_t)((h1 + (uint64_t)j * h2) % (uint64_t)width);
+        }
+    }
 
     // CMS
     ADALOG_API void* cms_create(int width, int depth, uint32_t seed) {
-        return new CMSCore(width, depth, seed);
+        try {
+            return new CMSCore(width, depth, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void cms_destroy(void* ptr) {
         delete (CMSCore*)ptr;
     }
     ADALOG_API void cms_update(void* ptr, const char* key, int len, uint32_t count) {
-        ((CMSCore*)ptr)->update(key, len, count);
+        if (ptr) ((CMSCore*)ptr)->update(key, len, count);
+    }
+    ADALOG_API uint32_t cms_estimate(void* ptr, const char* key, int len) {
+        if (!ptr) return 0;
+        return ((CMSCore*)ptr)->estimate(key, len);
     }
 
     // Bloom
     ADALOG_API void* bloom_create(int m, int k, uint32_t seed) {
-        return new BloomCore(m, k, seed);
+        try {
+            return new BloomCore(m, k, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void bloom_destroy(void* ptr) {
         delete (BloomCore*)ptr;
     }
     ADALOG_API void bloom_add(void* ptr, const char* key, int len) {
-        ((BloomCore*)ptr)->add(key, len);
+        if (ptr) ((BloomCore*)ptr)->add(key, len);
+    }
+    ADALOG_API bool bloom_contains(void* ptr, const char* key, int len) {
+        if (!ptr) return false;
+        return ((BloomCore*)ptr)->contains(key, len);
     }
 
     // HLL
     ADALOG_API void* hll_create(int p, uint32_t seed) {
-        return new HLLCore(p, seed);
+        try {
+            return new HLLCore(p, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void hll_destroy(void* ptr) {
         delete (HLLCore*)ptr;
     }
     ADALOG_API void hll_add(void* ptr, const char* key, int len) {
-        ((HLLCore*)ptr)->add(key, len);
+        if (ptr) ((HLLCore*)ptr)->add(key, len);
+    }
+    ADALOG_API double hll_cardinality(void* ptr) {
+        if (!ptr) return 0.0;
+        return ((HLLCore*)ptr)->cardinality();
     }
 
     // Disjoint Stack
     ADALOG_API void* disjoint_create(int bf_m, int bf_k, int cms_w, int cms_d, int hll_p, uint32_t seed) {
-        return new DisjointCore(bf_m, bf_k, cms_w, cms_d, hll_p, seed);
+        try {
+            return new DisjointCore(bf_m, bf_k, cms_w, cms_d, hll_p, seed);
+        } catch (...) {
+            return nullptr;
+        }
     }
     ADALOG_API void disjoint_destroy(void* ptr) {
         delete (DisjointCore*)ptr;
     }
     ADALOG_API void disjoint_update(void* ptr, const char* key, int len, uint32_t count) {
-        ((DisjointCore*)ptr)->update(key, len, count);
+        if (ptr) ((DisjointCore*)ptr)->update(key, len, count);
     }
 }

@@ -3,7 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![C++ Core: 21.97 Mops/s](https://img.shields.io/badge/C++%20Native-21.97%20Mops%2Fs-success.svg)](src/cpp/)
-[![Tests: 35 Passed](https://img.shields.io/badge/Tests-35%20Passed-brightgreen.svg)](tests/)
+[![Tests: 42 Passed](https://img.shields.io/badge/Tests-42%20Passed-brightgreen.svg)](tests/)
+[![Audit: 14/14 Invariants](https://img.shields.io/badge/Audit-14%2F14%20Invariants-brightgreen.svg)](audit/)
 
 A reproducible research codebase and benchmark case study evaluating classical probabilistic data structures (**Bloom Filter**, **Count-Min Sketch**, **HyperLogLog**, **Elastic Sketch**, **Augmented Sketch**) alongside **AdaLog-Sketch**—a unified randomized algorithm that executes Approximate Membership Queries (AMQ), Point Frequency Estimation, Distinct Cardinality Counting, and Heavy Hitters from a **single shared memory block driven by a single 128-bit hash computation per stream item**.
 
@@ -142,13 +143,13 @@ randomized-approx-query-processing/
 ├── src/                                # Canonical source code
 │   ├── cpp/                            # C++17 high-performance engine
 │   │   ├── core/                       # Core algorithms (adalog_core.cpp, bench_core.cpp)
-│   │   ├── hashing/                    # Hash implementations (hash_xxh3.h)
+│   │   ├── hashing/                    # Hash implementations (hash_murmur3.h)
 │   │   └── bindings/                   # Cross-platform ctypes bindings with auto-loader
 │   └── python/                         # Python reference implementation
 │       └── adalog/                     # Modular AdaLog-Sketch library
 │           ├── sketch.py               # Unified AdaLogSketch with modular components
-│           ├── stash.py                # Associative elephant stash with max() write-back
-│           ├── hash_utils.py           # Kirsch-Mitzenmacher double-hashing
+│           ├── stash.py                # Associative elephant stash with max() write-back (24-byte layout, 64-bit exact counters)
+│           ├── hash_utils.py           # Kirsch-Mitzenmacher 64-bit double-hashing
 │           ├── hll_packed.py           # 6-bit packed HyperLogLog registers
 │           └── compression.py          # LightRanger wire-format compression engine
 │
@@ -156,9 +157,9 @@ randomized-approx-query-processing/
 │   ├── baselines/                      # Implementations of classical sketches (BF, CMS, HLL, etc.)
 │   └── scripts/                        # Experiment execution scripts (Exp 1 through 8)
 │
-├── tests/                              # Rigorous verification suite (35 automated tests)
+├── tests/                              # Rigorous verification suite (42 automated tests + 14 audit tests)
 │   ├── regression/                     # Invariant preservation and mathematical checks
-│   └── differential/                   # C++ vs. Python cross-language differential tests
+│   └── differential/                   # C++ vs. Python cross-language differential tests (native parity)
 │
 ├── datasets/                           # Stream trace loaders and synthetic generators
 │   ├── raw/                            # Reference datasets (CAIDA, synthetic)
