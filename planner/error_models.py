@@ -144,8 +144,17 @@ def compute_theorem2_k_sat(
         return 0
 
     ratio = net_threshold / c_alpha_n
-    k_sat = int(math.floor(ratio ** (-1.0 / alpha)))
-    return max(0, min(n_unique, k_sat))
+    k_sat_mean = int(math.floor(ratio ** (-1.0 / alpha)))
+    if k_sat_mean <= 0:
+        return 0
+
+    # Chernoff-Bennett concentration bound for 1 - delta confidence (>99.9% at delta=1e-3)
+    # Realized saturation count K_sat^* = ceil(E[K_sat] + t)
+    # where t = sqrt(2 * E[K_sat] * ln(1/delta)) + (1/3) * ln(1/delta)
+    log_inv_delta = math.log(1.0 / 0.001)
+    t_margin = math.sqrt(2.0 * k_sat_mean * log_inv_delta) + (1.0 / 3.0) * log_inv_delta
+    k_sat_star = int(math.ceil(k_sat_mean + t_margin))
+    return max(0, min(n_unique, k_sat_star))
 
 
 def compute_adalog_memory_bytes(
