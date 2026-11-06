@@ -21,7 +21,7 @@ from adalog.sketch import AdaLogSketch
 from core.bindings import is_dll_available, CompiledAdaLog
 
 CSV_OUT_PROJ = os.path.join(BASE_DIR, "audit", "AdaLog_Sketch_Audit_Test_Results.csv")
-CSV_OUT_BRAIN = r"C:\Users\Shobhit\.gemini\antigravity\brain\2e0bfc21-e3c1-4dcc-bfe2-952a1a766a47\out\audit\AdaLog_Sketch_Audit_Test_Results.csv"
+CSV_OUT_BRAIN = os.environ.get("BRAIN_AUDIT_CSV", r"C:\Users\Shobhit\.gemini\antigravity\brain\2e0bfc21-e3c1-4dcc-bfe2-952a1a766a47\out\audit\AdaLog_Sketch_Audit_Test_Results.csv")
 
 
 def run_all_14_audit_invariants(verbose=True):

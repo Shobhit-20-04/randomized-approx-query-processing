@@ -602,5 +602,5 @@ def build_pdf(filename):
 
 
 if __name__ == "__main__":
-    out_pdf = r"D:\VIT\DSA Case Study\randomized-approx-query-processing\AdaLog_Sketch_Project_Study_Guide.pdf"
+    out_pdf = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "AdaLog_Sketch_Project_Study_Guide.pdf"))
     build_pdf(out_pdf)

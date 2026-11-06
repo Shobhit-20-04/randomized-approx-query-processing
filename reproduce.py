@@ -44,8 +44,13 @@ def main():
     core_dir = os.path.join(BASE_DIR, "core")
     dll_path = os.path.join(core_dir, "adalog_core.dll")
     if not os.path.exists(dll_path):
-        log("Compiling adalog_core.dll with MSYS2 g++...")
-        gxx = r"C:\msys64\ucrt64\bin\g++.exe"
+        log("Compiling adalog_core.dll with C++ compiler...")
+        import shutil
+        gxx = shutil.which("g++")
+        if not gxx and os.path.exists(r"C:\msys64\ucrt64\bin\g++.exe"):
+            gxx = r"C:\msys64\ucrt64\bin\g++.exe"
+        if not gxx:
+            raise RuntimeError("g++ compiler not found in PATH or standard MSYS2 installation.")
         cmd = [gxx, "-O3", "-shared", "-static", "-static-libgcc", "-static-libstdc++", "-o", "adalog_core.dll", "adalog_core.cpp"]
         subprocess.run(cmd, cwd=core_dir, check=True)
     print(f"Native core verified at {dll_path}")

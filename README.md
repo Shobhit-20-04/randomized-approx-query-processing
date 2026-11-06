@@ -155,7 +155,7 @@ AdaLog-Sketch/
 │   └── python/
 │       └── adalog/                    # Canonical Python package
 │
-├── tests/                             # Comprehensive Test Suite (46 Tests)
+├── tests/                             # Comprehensive Test Suite (55 Tests)
 │   ├── cpp/                           # Native C++ unit tests (test_adalog_core.cpp)
 │   ├── python/                        # Component-level Python unit tests
 │   ├── differential/                  # C++ vs Python bit-identical verification
@@ -196,7 +196,7 @@ AdaLog-Sketch/
 │
 └── scripts/                           # Build & Verification Scripts
     ├── build/                         # build_core.bat, build_core.sh
-    └── validation/                    # verify_results.py
+    └── utilities/                     # verify_results.py, build_overleaf_zip.py
 ```
 
 ---
@@ -267,20 +267,20 @@ int main() {
 
 ## 8. Running Tests & Benchmarks
 
-### 8.1 Execute Comprehensive Test Suite (46 Tests)
+### 8.1 Execute Comprehensive Test Suite (55 Tests)
 ```bash
 pytest -v tests/
 ```
 
 ### 8.2 Run Native C++ Tests
 ```bash
-g++ -O3 -std=c++17 -Isrc/cpp/core tests/cpp/test_adalog_core.cpp -o tests/cpp/test_adalog_core.exe
+g++ -O3 -std=c++17 -mavx2 -Isrc/cpp/include tests/cpp/test_adalog_core.cpp -o tests/cpp/test_adalog_core.exe
 ./tests/cpp/test_adalog_core.exe
 ```
 
 ### 8.3 Verify Theoretical Invariants & Benchmark Integrity
 ```bash
-python scripts/validation/verify_results.py
+python scripts/verify_results.py
 ```
 
 ### 8.4 Run Full Memory Sweep Benchmark

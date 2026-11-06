@@ -1,7 +1,8 @@
 import re
 import os
 
-MAIN_TEX = r"D:/VIT/DSA Case Study/randomized-approx-query-processing/paper/main.tex"
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+MAIN_TEX = os.path.join(PROJECT_ROOT, "paper", "main.tex")
 
 with open(MAIN_TEX, "r", encoding="utf-8") as f:
     text = f.read()

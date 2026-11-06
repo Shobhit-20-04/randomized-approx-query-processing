@@ -3,7 +3,7 @@ import zipfile
 import shutil
 
 def build_overleaf_package():
-    repo_root = os.path.abspath('D:/VIT/DSA Case Study/randomized-approx-query-processing')
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     paper_dir = os.path.join(repo_root, 'paper')
     manuscript_dir = os.path.join(paper_dir, 'manuscript')
     overleaf_dir = os.path.join(paper_dir, 'overleaf')
@@ -47,10 +47,11 @@ def build_overleaf_package():
                 print(f"  ! WARNING: {src} does not exist!")
 
     # Also copy to artifacts directory and paper_local
-    artifact_dir = r'C:\Users\Shobhit\.gemini\antigravity\brain\2e0bfc21-e3c1-4dcc-bfe2-952a1a766a47'
-    artifact_zip = os.path.join(artifact_dir, 'AdaLog_Sketch_Overleaf_Package.zip')
-    shutil.copy2(zip_path, artifact_zip)
-    print(f"Copied to artifact dir: {artifact_zip}")
+    artifact_dir = os.environ.get('BRAIN_ARTIFACT_DIR', r'C:\Users\Shobhit\.gemini\antigravity\brain\2e0bfc21-e3c1-4dcc-bfe2-952a1a766a47')
+    if os.path.exists(artifact_dir):
+        artifact_zip = os.path.join(artifact_dir, 'AdaLog_Sketch_Overleaf_Package.zip')
+        shutil.copy2(zip_path, artifact_zip)
+        print(f"Copied to artifact dir: {artifact_zip}")
     
     paper_local_zip = os.path.join(repo_root, 'paper_local', 'AdaLog_Sketch_Overleaf_Package.zip')
     if os.path.exists(os.path.dirname(paper_local_zip)):

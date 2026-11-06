@@ -42,6 +42,11 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Compiled binaries and executables
+*.exe
+*.o
+*.a
+
 # Large generated data (keep small sample/results for report, ignore temporary dumps)
 *.tmp
 *.log

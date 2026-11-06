@@ -108,7 +108,7 @@ def run_planner_evaluation(
 
         # 2. Fixed Default Config (d=4, K=32, tau=20, m=1024, remainder w)
         fixed_hll_bytes = (1024 * 6 + 7) // 8
-        fixed_stash_bytes = 32 * 16
+        fixed_stash_bytes = 32 * 24
         fixed_w = max(64, (budget_32k - fixed_hll_bytes - fixed_stash_bytes) // 4)
         s_fixed = AdaLogSketch(
             d=4, w=fixed_w, counter_bits=8, m=1024,
