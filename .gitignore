@@ -49,11 +49,19 @@ Thumbs.db
 
 # Research papers and manuscripts (strictly excluded from public code repository)
 paper/
-research_paper_final/
 paper_local/
+research_paper_final/
 out/
+figures/
 *.pdf
 *.docx
+*.tex
+*.bib
+*.bbl
+*.blg
+*.aux
+*.out
+*.synctex.gz
 *arch_diagram*
 scripts/generate_arch_diagram.py
 AdaLog_Sketch_Comprehensive_Technical_Report.md

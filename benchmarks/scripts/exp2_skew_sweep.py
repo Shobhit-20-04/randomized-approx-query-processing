@@ -40,10 +40,10 @@ def run_skew_sweep(
         print(f"\nEvaluating Skew alpha = {alpha:.2f}...")
         stream, ground_truth = generate_zipf_stream(n_stream=n_stream, n_unique=n_unique, alpha=alpha, seed=seed)
 
-        # 1. AdaLog-Sketch
+        # 1. AdaLog-Sketch (at 32KB: K=128, m=1024)
         hll_m = 1024
-        stash_k = 64
-        fixed_bytes = (hll_m * 6 + 7) // 8 + stash_k * 16
+        stash_k = 128
+        fixed_bytes = (hll_m * 6 + 7) // 8 + stash_k * 24
         rem_bytes = max(256, total_bytes - fixed_bytes)
         d = 4
         w = max(64, rem_bytes // d)

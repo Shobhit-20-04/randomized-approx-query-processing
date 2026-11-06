@@ -128,35 +128,36 @@ class AdaLogSketch:
             for idx in indices:
                 self.presence_plane[idx >> 3] |= (1 << (idx & 7))
 
-        # 4. Update Counter Matrix (Conservative Update or Standard)
+        # 4. Sequence A: Check Stash Promotion (candidate frequency v_min + count >= tau)
+        v_min = min(int(self.table[j, indices[j]]) for j in range(self.depth))
+        v_target = min(self.max_val, v_min + count)
+
+        if self.use_stash and (v_min + count) >= self.stash.threshold:
+            tag = int(h_high & 0x7FFFFFFF)
+            admitted, eviction = self.stash.try_promote(key, v_min, count, tag=tag)
+            if admitted:
+                if eviction is not None:
+                    evict_key, evict_count = eviction
+                    # Lossless write-back into matrix with max()
+                    h_evict_low, _ = hash128(evict_key, seed=self.seed)
+                    evict_indices = get_matrix_indices(h_evict_low, self.depth, self.width)
+                    bounded_evict = min(self.max_val, evict_count)
+                    for j in range(self.depth):
+                        cur_val = int(self.table[j, evict_indices[j]])
+                        if bounded_evict > cur_val:
+                            self.table[j, evict_indices[j]] = bounded_evict
+                return  # Sequence A: Stash admitted, bypass matrix update!
+
+        # 5. Matrix Conservative Update (for unpromoted items or items rejected from saturated stash)
         if self.use_conservative_update:
-            v_min = min(int(self.table[j, indices[j]]) for j in range(self.depth))
-            v_target = min(self.max_val, v_min + count)
             for j in range(self.depth):
                 cur_val = int(self.table[j, indices[j]])
                 if cur_val < v_target:
                     self.table[j, indices[j]] = v_target
-            est_after = v_target
         else:
             for j in range(self.depth):
                 cur = int(self.table[j, indices[j]])
                 self.table[j, indices[j]] = min(self.max_val, cur + count)
-            est_after = min(int(self.table[j, indices[j]]) for j in range(self.depth))
-
-        # 5. Check Stash Promotion (candidate frequency v_target >= tau)
-        if self.use_stash and est_after >= self.stash.threshold:
-            tag = int(h_high & 0xFFFFFFFF)
-            eviction = self.stash.promote(key, est_after, tag=tag)
-            if eviction is not None:
-                evict_key, evict_count = eviction
-                # Lossless write-back into matrix with max()
-                h_evict_low, _ = hash128(evict_key, seed=self.seed)
-                evict_indices = get_matrix_indices(h_evict_low, self.depth, self.width)
-                bounded_evict = min(self.max_val, evict_count)
-                for j in range(self.depth):
-                    cur_val = int(self.table[j, evict_indices[j]])
-                    if bounded_evict > cur_val:
-                        self.table[j, evict_indices[j]] = bounded_evict
 
     def update_many(self, keys, count: int = 1) -> None:
         for k in keys:

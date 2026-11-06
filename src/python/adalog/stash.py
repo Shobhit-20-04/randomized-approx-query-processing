@@ -68,24 +68,24 @@ class ElephantStash:
             return True
         return False
 
-    def promote(self, key: KeyType, baseline_count: int, tag: int = 0) -> Optional[Tuple[KeyType, int]]:
+    def try_promote(self, key: KeyType, base_count: int, exact_count: int = 1, tag: int = 0) -> Tuple[bool, Optional[Tuple[KeyType, int]]]:
         """
-        Attempts to promote key to the stash.
-        Returns evicted (key, evict_count) if an eviction occurred, else None.
-        Globally fully associative: never rejects when len(entries) < capacity.
+        Attempts to promote key to the stash under Sequence A semantics.
+        Returns (admitted, evicted_item):
+          - (True, None) if admitted into free capacity.
+          - (True, (evict_key, evict_total)) if admitted via victim eviction.
+          - (False, None) if rejected (all resident elephants are saturated or heavier).
         """
         if key in self.entries:
-            return None
+            return True, None
 
         # Case A: Stash not full - admit unconditionally into open capacity
         if len(self.entries) < self.capacity:
-            self.entries[key] = StashEntry(key=key, base_count=baseline_count, exact_count=0, tag=tag)
+            self.entries[key] = StashEntry(key=key, base_count=base_count, exact_count=exact_count, tag=tag)
             self.insertions += 1
-            return None
+            return True, None
 
         # Case B: Stash full - globally find non-saturated entry with minimum total count.
-        # Saturated elephants (total_count >= max_counter_val) must NOT be evicted into
-        # narrow matrix counters, which would truncate and underestimate (Theorem 2).
         evictable_candidates = [
             (k, e) for k, e in self.entries.items()
             if e.total_count < self.max_counter_val
@@ -93,29 +93,37 @@ class ElephantStash:
         if not evictable_candidates:
             # All stash slots hold saturated elephants; retain them to guarantee Theorem 2
             self.rejections += 1
-            return None
+            return False, None
 
         min_key, min_entry = min(evictable_candidates, key=lambda kv: kv[1].total_count)
         min_total = min_entry.total_count
+        candidate_total = base_count + exact_count
 
-        if baseline_count > min_total:
+        if candidate_total > min_total:
             # Evict min_key with lossless write-back
             self.evictions += 1
             evicted_item = (min_key, min_total)
             del self.entries[min_key]
-            self.entries[key] = StashEntry(key=key, base_count=baseline_count, exact_count=0, tag=tag)
-            return evicted_item
+            self.entries[key] = StashEntry(key=key, base_count=base_count, exact_count=exact_count, tag=tag)
+            return True, evicted_item
 
         # Promotion rejected: candidate does not exceed the lightest evictable elephant
         self.rejections += 1
-        return None
+        return False, None
+
+    def promote(self, key: KeyType, baseline_count: int, tag: int = 0) -> Optional[Tuple[KeyType, int]]:
+        """Legacy helper for backward compatibility."""
+        admitted, evict = self.try_promote(key, baseline_count, exact_count=0, tag=tag)
+        return evict
 
     def top_k(self, k: int = 10) -> List[Tuple[KeyType, int]]:
-        return sorted(
+        """O(K log k) extraction using a min-heap."""
+        import heapq
+        return heapq.nlargest(
+            k,
             [(e.key, e.total_count) for e in self.entries.values()],
             key=lambda kv: kv[1],
-            reverse=True,
-        )[:k]
+        )
 
     def logical_memory_bytes(self) -> int:
         """

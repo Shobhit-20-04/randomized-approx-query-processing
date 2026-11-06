@@ -69,10 +69,15 @@ def run_memory_sweep(
         # -------------------------------------------------------------
         # 1. AdaLog-Sketch (Unified)
         # -------------------------------------------------------------
-        # Allocation: 6-bit packed HLL (m=1024 -> 768 B), Stash (K=64 -> 1024 B), remainder matrix
+        # Allocation: 6-bit packed HLL (m=1024 -> 768 B for >=16KB), Stash (K=128 for >=32KB, K=64 for 16KB, K=32 for 8KB), remainder matrix
         hll_m = 1024 if total_bytes >= 16384 else 512
-        stash_k = 64 if total_bytes >= 16384 else 32
-        fixed_bytes = (hll_m * 6 + 7) // 8 + stash_k * 16
+        if total_bytes >= 32768:
+            stash_k = 128
+        elif total_bytes >= 16384:
+            stash_k = 64
+        else:
+            stash_k = 32
+        fixed_bytes = (hll_m * 6 + 7) // 8 + stash_k * 24
         rem_bytes = max(256, total_bytes - fixed_bytes)
         d = 4
         # 8-bit counters: 1 byte per cell

@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include <vector>
+#include <queue>
 #include <string>
 #include <algorithm>
 #include <stdexcept>
@@ -266,20 +267,9 @@ public:
         uint64_t v_target_64 = (uint64_t)v_min + (uint64_t)count;
         uint32_t v_target = (v_target_64 > (uint64_t)max_val) ? max_val : (uint32_t)v_target_64;
 
-        for (int j = 0; j < depth; j++) {
-            uint32_t cur = get_cell(j, indices[j]);
-            if (cur < v_target) {
-                set_cell(j, indices[j], v_target);
-            }
-        }
-
-        // --- Fully Associative Stash Admission & Eviction ---
+        // --- Sequence A: Fully Associative Stash Promotion (Bypasses Matrix Write) ---
         // An item qualifies for promotion when candidate frequency reaches tau: v_min + count >= tau
         if (use_stash && stash_cap > 0 && v_target_64 >= (uint64_t)tau) {
-            if (find_stash_slot(h[0], tag) >= 0) {
-                return;
-            }
-
             // Case A: Stash not full - admit into first open slot
             if (stash_count < stash_cap) {
                 for (int i = 0; i < stash_cap; i++) {
@@ -288,7 +278,7 @@ public:
                         stash_items[i].set(h[0], tag, base, count);
                         stash_count++;
                         stash_insertions++;
-                        return;
+                        return; // Sequence A: Stash admitted, bypass matrix update!
                     }
                 }
             }
@@ -323,8 +313,19 @@ public:
                 uint32_t base = (v_min > max_val) ? max_val : v_min;
                 stash_items[evict_slot].set(h[0], tag, base, count);
                 stash_evictions++;
+                return; // Sequence A: Victim written back, candidate admitted, bypass matrix update!
             } else {
                 stash_rejections++;
+                // Saturated / heavy stash: candidate cannot evict, falls through to matrix update below
+            }
+        }
+
+        // --- Matrix Conservative Update with 64-bit Index Calculation ---
+        // Executed only for unpromoted items (below tau or rejected from full saturated stash)
+        for (int j = 0; j < depth; j++) {
+            uint32_t cur = get_cell(j, indices[j]);
+            if (cur < v_target) {
+                set_cell(j, indices[j], v_target);
             }
         }
     }
@@ -408,23 +409,28 @@ public:
     int get_top_k(int k, uint64_t* out_hashes, uint64_t* out_counts) const {
         if (!use_stash || stash_count == 0 || k <= 0) return 0;
 
-        std::vector<std::pair<uint64_t, uint64_t>> candidates;
-        candidates.reserve(stash_count);
+        // O(K log k) extraction using a size-k min-heap of pairs (count, key_hash)
+        using Entry = std::pair<uint64_t, uint64_t>;
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> min_heap;
 
         for (int i = 0; i < stash_cap; i++) {
             if (stash_items[i].is_occupied()) {
-                candidates.push_back({stash_items[i].total(), stash_items[i].key_hash});
+                Entry e = {stash_items[i].total(), stash_items[i].key_hash};
+                if ((int)min_heap.size() < k) {
+                    min_heap.push(e);
+                } else if (e.first > min_heap.top().first) {
+                    min_heap.pop();
+                    min_heap.push(e);
+                }
             }
         }
 
-        std::sort(candidates.begin(), candidates.end(), [](const auto& a, const auto& b) {
-            return a.first > b.first;
-        });
-
-        int ret_count = std::min((int)candidates.size(), k);
-        for (int i = 0; i < ret_count; i++) {
-            out_counts[i] = candidates[i].first;
-            out_hashes[i] = candidates[i].second;
+        int ret_count = (int)min_heap.size();
+        // Extract elements in descending order (largest first)
+        for (int i = ret_count - 1; i >= 0; i--) {
+            out_counts[i] = min_heap.top().first;
+            out_hashes[i] = min_heap.top().second;
+            min_heap.pop();
         }
         return ret_count;
     }

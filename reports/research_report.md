@@ -2,7 +2,7 @@
 
 **Author:** Shobhit Agrawal  
 **Degree:** M.Tech Computer Science & Engineering  
-**Date:** 2026-11-06  
+**Date:** 2026-11-07  
 **Repository:** [randomized-approx-query-processing](https://github.com/Shobhit-20-04/randomized-approx-query-processing)
 
 ---

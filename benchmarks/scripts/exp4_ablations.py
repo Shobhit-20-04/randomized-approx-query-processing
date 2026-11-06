@@ -57,8 +57,8 @@ def run_ablation_grid(
         d = 4
 
         # Compute width w fitting within total_bytes
-        stash_k = 64 if cfg["use_stash"] else 0
-        stash_bytes = stash_k * 16
+        stash_k = 128 if cfg["use_stash"] else 0
+        stash_bytes = stash_k * 24
         if cfg["hll"] == "coupled":
             # coupled: m = w. Each column has d * (bits/8) bytes + (6/8) bytes HLL
             # w * (d * bits + 6) / 8 <= total_bytes - stash_bytes

@@ -1,0 +1,49 @@
+{
+  "datasets": [
+    {
+      "alpha": 1.05,
+      "raw_mae": 3.008,
+      "debiased_mae": 3.008,
+      "mae_reduction_pct": 0.0,
+      "coverage_pct": 100.0,
+      "avg_width": 5.3,
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.15,
+      "raw_mae": 1.496,
+      "debiased_mae": 1.496,
+      "mae_reduction_pct": 0.0,
+      "coverage_pct": 100.0,
+      "avg_width": 3.9,
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.25,
+      "raw_mae": 0.61,
+      "debiased_mae": 0.61,
+      "mae_reduction_pct": 0.0,
+      "coverage_pct": 100.0,
+      "avg_width": 3.2,
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.35,
+      "raw_mae": 0.199,
+      "debiased_mae": 0.199,
+      "mae_reduction_pct": 0.0,
+      "coverage_pct": 100.0,
+      "avg_width": 3.1,
+      "cardinality_covered": true
+    },
+    {
+      "alpha": 1.5,
+      "raw_mae": 0.03,
+      "debiased_mae": 0.03,
+      "mae_reduction_pct": 0.0,
+      "coverage_pct": 100.0,
+      "avg_width": 3.7,
+      "cardinality_covered": true
+    }
+  ]
+}
