@@ -305,8 +305,8 @@ python benchmarks/scripts/exp1_memory_sweep.py
 
 ### 9.2 Headline Throughput & Latency (Compiled C++ Native Core)
 - **Ingestion Throughput:** **21.97 Mops/s** ($45.52\text{ ns/op}$), achieving a **1.11x speedup** over Disjoint Core ($19.84\text{ Mops/s}$, $50.43\text{ ns/op}$).
-- **Point Query Latency:** **13.04 ns/op** (`adalog_estimate`).
-- **Membership Query Latency:** **25.97 ns/op** (`adalog_contains`).
+- **Point Query Latency:** **14.0 ns/op** (`adalog_estimate`, raw 13.999 ns).
+- **Membership Query Latency:** **13.7 ns/op** (`adalog_contains`, raw 13.713 ns).
 
 ---
 
