@@ -6,7 +6,7 @@
 **Audited Artifacts:**
 - Primary LaTeX Manuscript: `paper_local/latex/main.tex` (Strict 11-Page IEEE Conference Layout, 629 lines, 7,597 words)
 - Overleaf Submission Bundle: `paper_local/AdaLog_Sketch_Overleaf_Package.zip` (11-Page Publication Package, 1.45 MB)
-- High-Performance C++ Production Engine: `core/adalog_core.cpp` (MurmurHash3-128, 96-bit stash, 24B layout)
+- High-Performance C++ Production Engine: `core/adalog_core.cpp` (MurmurHash3-128, 95-bit composite fingerprint, 24B layout)
 - Python Reference & Planner: `adalog/`, `planner/error_models.py`, `planner/planner.py`
 - Test & Benchmark Verification: `tests/`, `audit/AdaLog_Sketch_Audit_Test_Results.csv` (14/14 PASS, 40/40 pytest PASS, GitHub Actions 4/4 Green)
 
@@ -22,10 +22,10 @@ This report delivers the authoritative technical reconciliation resolving all 20
 | :--- | :--- | :--- | :--- | :--- |
 | **HLL linear-counting threshold** | Cardinality | Fixed | **FIXED** | Verified $2.5m$ threshold ($m=1024$) with small-range linear counting correction. |
 | **Membership FPR expression** | AMQ / Math | Fixed | **FIXED** | Formally validated $(1 - e^{-n/w})^d$ ($d=4$) without dedicated filter bit partitions. |
-| **Theorem 2 versus planner sizing** | Theory / Sizing | Unresolved | **FIXED** | Sizing unified to $K \ge K_{sat}^*$ across Abstract, Planner, Theorem 2, and Proof. Derived explicit Chernoff-Bennett concentration inequality proving $K = 128 \ge 88 + 39.5$ with $>99.9\%$ confidence. |
+| **Theorem 2 versus planner sizing** | Theory / Sizing | Unresolved | **FIXED** | Sizing unified to $K \ge K_{sat}^*$ across Abstract, Planner, Theorem 2, and Proof. Derived explicit Chernoff-Bennett concentration inequality proving $K_{\mathrm{plan}} = \lceil 88 + 37.2 \rceil = 126 \le 128$ with $>99.9\%$ confidence. |
 | **Promotion condition mismatch** | Algorithm / Code | Unresolved | **FIXED** | Synchronized Eq. (14), Algorithm 1, C++ core, and Python reference to incoming increment condition: $v_{\min} + c \ge \tau$ (default $\tau = 15$). |
 | **24-byte versus 16-byte stash layout** | Memory / Layout | Partially clarified | **FIXED** | Clarified draft 16-byte prototype (\text{B } h_1 + 4\text{B } c_{base} + 4\text{B } c_{exact}$) vs production 24-byte layout (\text{B } h_1 + 4\text{B } tag + 4\text{B } c_{base} + 8\text{B } c_{exact} = 24\text{ B}$, 8-byte aligned) supporting 64-bit exact counts (^{64}-1$). Standardized strictly on 24 bytes/slot across C++, Python, Planner, and LaTeX ( \times 24 = 3,072$ B; exact 32,768 B total). |
-| **64-bit versus 96-bit fingerprint** | Systems / Hashing | Unresolved | **FIXED** | Derived 96-bit composite fingerprint from independent lanes of 128-bit hash: primary 64-bit $ (Lane 0) and secondary 32-bit  = h_2[0:31]$ (Lane 1). Independent lane separation yields (\text{false match}) \le 1.62 \times 10^{-21}$. Furthermore, conservative 64-bit evaluation yields  \le 6.94 \times 10^{-12} \ll 10^{-11}$, eliminating collisions under both 64-bit and 96-bit analyses. |
+| **64-bit versus 95-bit fingerprint** | Systems / Hashing | Unresolved | **FIXED** | Derived 95-bit composite fingerprint from independent lanes of 128-bit hash under ideal-hash assumption: primary 64-bit $h_1$ (Lane 0) and secondary 31-bit $tag = h_2 \& \text{0x7FFFFFFF}$ (Lane 1, where MSB stores occupancy). Ideal-hash union bound yields $P(\text{false match}) \le 3.23 \times 10^{-21}$. Furthermore, conservative 64-bit evaluation yields $P \le 6.94 \times 10^{-12} \ll 10^{-11}$, eliminating collisions under both 64-bit and 95-bit analyses. |
 | **Top-100 evaluation labelling** | Benchmarks | Partially fixed | **FIXED** | Labeled Table IV header Top-100 (P/R)*. Explicitly reported both global top-100 recall and resident top-$ recall: for  < 100$, resident recall is 1.00 ( \le K$), while unassisted global top-100 recall is capacity-bounded by /100$ (.32$ at 8 KB, .64$ at 16 KB). For  \ge 100$ (32 KB+), global top-100 precision/recall is strictly 1.00/1.00. |
 | **Adaptive threshold experiment** | Controller / Exp | Unresolved | **FIXED** | Documented negative result in Section VII-C with exact statistics from exp6_adaptive_eval.json: (1) single-run burst shock test showing transient 1-epoch measurement lag and premature saturation (MAE 7.67 vs 7.60 for fixed $\tau=10$, a 0.9% degradation), and (2) 10-seed non-stationary skew drift ($\alpha: 1.10 \to 1.50 \to 1.20$) showing negligible $\Delta \text{MAE} = -0.049 \pm 0.003$ (95% CI $[-0.052, -0.046]$,  < 10^{-4}$, 0.6% relative change). Justified baseline $\tau=10$ for low initial skew vs. standard default $\tau=15$. |
 | **Raw versus debiased estimates** | Error Bounds | Improved | **FIXED** | Theorem 2 zero-underestimation invariant strictly restricted to raw frequency estimates $\hat{f}_{raw}(x) \ge f(x)$. Debiased estimates documented as practical empirical heuristics. |
@@ -39,14 +39,14 @@ The table below documents the exact point-by-point resolution for all 20 specifi
 
 | No. | Severity | Location in Paper | Identified Discrepancy | Required Correction & Implementation Details | Resolution Status |
 | :---: | :---: | :--- | :--- | :--- | :---: |
-| **1** | **Critical** | Page 5, Sec. IV-E | 96-bit composite fingerprint independence | Primary 64-bit hash $h_1$ and secondary 32-bit tag $h_2[0:31]$ are extracted from separate 64-bit lanes of the 128-bit digest $(h_2, h_1) \leftarrow \mathrm{Hash}_{128}(x)$. Statistically independent mixing yields $P(\text{match}) \le 1.62 \times 10^{-21}$. | **RESOLVED** |
+| **1** | **Critical** | Page 5, Sec. IV-E | 95-bit composite fingerprint & ideal-hash model | Primary 64-bit hash $h_1$ and secondary 31-bit tag ($h_2 \& \text{0x7FFFFFFF}$, MSB occupancy) are extracted from separate 64-bit lanes of the 128-bit digest. Qualified under ideal-hash assumption, yielding $P(\text{match}) \le 3.23 \times 10^{-21}$ (and $\le 6.94 \times 10^{-12}$ for conservative 64-bit evaluation). | **RESOLVED** |
 | **2** | **Critical** | Pages 5–6, Alg. 1 | Eviction re-hashing raw key | Kirsch-Mitzenmacher double hashing computes row indices directly from stored 64-bit primary hash: $idx_j(e) = (e.h_1[0:31] + j \cdot (e.h_1[32:63] \mid 1)) \bmod w$. Eviction requires zero raw key recovery and zero extra memory. | **RESOLVED** |
 | **3** | **Critical** | Page 4, Eq. (8) | Conservative Update max vs min text | Eq. (8) updated to $T[j, idx_j(x)] \leftarrow \max(T[j, idx_j(x)], \min(C_{\max}, v_{\min} + c))$. Explained that for unit increments ($c=1$), this simplifies identically to incrementing only minimal cells; for batch updates, it prevents underestimation. | **RESOLVED** |
 | **4** | **Critical** | Pages 7–8, Sec. V-C | Capacity condition mismatch across paper | Unified to $K \ge K_{sat}^*$ across Abstract, Introduction, Table I, Section IV-C, Planner, Theorem 2, and Proof. Defined $K_{sat}^* = \|\{x \in \mathcal{U} \mid f(x) + \delta_{\text{noise}}(x) \ge C_{\max}\}\|$. | **RESOLVED** |
-| **5** | **Critical** | Page 7, Eqs. (25)–(26) | Realized $K_{sat}$ concentration bound | Derived explicit Chernoff-Bennett tail bound for Poisson-binomial sum: $t(\delta_{sat}) \le \sqrt{2\mathbb{E}[K_{sat}]\ln(1/\delta_{sat})} + \frac{2}{3}\ln(1/\delta_{sat})$. For $\mathbb{E}[K_{sat}] \approx 88$, $t \le 39.5 \implies K = 128$ guarantees Theorem 2 with $>99.9\%$ confidence. | **RESOLVED** |
+| **5** | **Critical** | Page 7, Eqs. (25)–(26) | Realized $K_{sat}$ concentration bound | Derived explicit Chernoff-Bennett tail bound for Poisson-binomial sum: $t(\delta_{sat}) \le \sqrt{2\mathbb{E}[K_{sat}]\ln(1/\delta_{sat})} + \frac{2}{3}\ln(1/\delta_{sat})$. For $\mathbb{E}[K_{sat}] \approx 88$, $t = 37.2 \implies K_{\mathrm{plan}} = 126 \le 128$ guarantees Theorem 2 with $>99.9\%$ confidence. | **RESOLVED** |
 | **6** | **High** | Page 5, Eq. (14) | Promotion condition mismatch ($v_{\min}$ vs $v_{\min} + c$) | Aligned Eq. (14) with Algorithm 1 and C++ code: $\min_{0 \le j < d} T[j, idx_j(x)] + c \ge \tau \implies \mathrm{Promote}(x)$. Updated text to candidate post-increment frequency. | **RESOLVED** |
 | **7** | **High** | Pages 4–6, Sec. IV-A | Hash algorithm distinction (Python vs C++) | Explicitly stated that Python reference uses XXH3-128 while C++ engine implements MurmurHash3-x64-128. Documented cross-language validation showing point-query divergence $\le 2$ counts across streams. | **RESOLVED** |
-| **8** | **High** | Page 5, Sec. IV-E | 24-byte stash entry layout accounting | Removed draft 16-byte mention. Specified 24B layout: 8B $h_1$ + 4B $tag$ + 4B $c_{base}$ + 4B $c_{exact}$ + 4B status/padding = 24B. Total: $768\text{ B} + 3,072\text{ B} + 28,928\text{ B} = 32,768\text{ B}$ (exact 32 KB). | **RESOLVED** |
+| **8** | **High** | Page 5, Sec. IV-E | 24-byte stash entry layout accounting | Removed draft 16-byte mention. Specified true 24B layout: 8B $h_1$ + 4B $tag$ (31-bit tag + 1-bit occupancy flag) + 4B $c_{base}$ + 8B $c_{exact}$ (uint64) = 24B (strictly zero padding). Total: $768\text{ B} + 3,072\text{ B} + 28,928\text{ B} = 32,768\text{ B}$ (exact 32 KB). | **RESOLVED** |
 | **9** | **High** | Page 4, Eq. (6) | Kirsch-Mitzenmacher attribution | Replaced Carter-Wegman formula with Kirsch-Mitzenmacher double hashing: $idx_j(x) = (h_{1,\text{low}} + j \cdot (h_{1,\text{high}} \mid 1)) \bmod w$. Cited Kirsch & Mitzenmacher (2008)~\cite{b19}. | **RESOLVED** |
 | **10** | **High** | Page 4, Sec. IV-C | 32-bit $c_{exact}$ overflow policy | Documented that $c_{exact}$ is an unsigned 32-bit integer (capacity $4.29 \times 10^9$). For long-running streams, saturation triggers telemetry warning, with optional periodic epoch half-life decay ($c \leftarrow \lfloor c/2 \rfloor$). | **RESOLVED** |
 | **11** | **High** | Page 6, Alg. 1 | Eviction re-insertion in pseudocode | Replaced `XXH3_128(e.key)` in Algorithm 1 with explicit Kirsch-Mitzenmacher index recovery: $idx_{j,e} \leftarrow (e.h_{1,\text{low}} + j \cdot e.h_{1,\text{high}}) \bmod w$ directly from $e.h_1$. | **RESOLVED** |
@@ -94,17 +94,16 @@ When a victim entry $e$ is evicted from the stash:
 ### A. Strict 24-Byte Stash Entry Layout
 Every stash entry is 24 bytes, 8-byte aligned, identical in C++, Python, and the analytical planner:
 ```
-+-----------------------------------+-----------------+
-| Field Name                        | Size & Type     |
-+-----------------------------------+-----------------+
-| key_hash (primary hash h1)        | 8 Bytes (uint64)|
-| tag (secondary tag from h2)       | 4 Bytes (uint32)|
-| c_base (promotion baseline count) | 4 Bytes (uint32)|
-| c_exact (exact accumulated count) | 4 Bytes (uint32)|
-| status_flags / memory padding     | 4 Bytes (uint32)|
-+-----------------------------------+-----------------+
-| Total Slot Footprint              | 24 Bytes        |
-+-----------------------------------+-----------------+
++------------------------------------+-----------------+
+| Field Name                         | Size & Type     |
++------------------------------------+-----------------+
+| key_hash (primary hash h1)         | 8 Bytes (uint64)|
+| tag (31b tag + 1b occupancy flag)  | 4 Bytes (uint32)|
+| c_base (promotion baseline count)  | 4 Bytes (uint32)|
+| c_exact (exact accumulated count)  | 8 Bytes (uint64)|
++------------------------------------+-----------------+
+| Total Slot Footprint (No Padding)  | 24 Bytes        |
++------------------------------------+-----------------+
 ```
 For $K = 128$ slots: $128 \times 24\text{ B} = 3,072\text{ Bytes}$.
 
@@ -132,7 +131,7 @@ The complete independent test suite in `audit/AdaLog_Sketch_Audit_Test_Results.c
 | **T03** | 8-bit Counter Saturation | Matrix saturates at 255 without stash | **PASS** |
 | **T04** | Stash Promotion at Tau | Promoted when $v_{\min} + c \ge \tau$ | **PASS** |
 | **T05** | Theorem 2 Invariant | Zero underestimation verified when $K \ge K_{sat}^*$ | **PASS** |
-| **T06** | 2-Choice Stash Fast Path | 96-bit composite fingerprint matching | **PASS** |
+| **T06** | 2-Choice Stash Fast Path | 95-bit composite fingerprint matching | **PASS** |
 | **T07** | Stash Write-Back Lower Bound | Monotonic $\max()$ preserves one-sided lower bound | **PASS** |
 | **T08** | Heavy-Hitter Recovery | Evicted keys recover without counter distortion | **PASS** |
 | **T09** | Variable-Length Keys | Variable-length strings hash without memory faults | **PASS** |

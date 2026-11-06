@@ -170,7 +170,7 @@ def compute_adalog_memory_bytes(
     
     - Counter matrix: d * w * counter_bits / 8
     - HLL registers: m * 6 / 8 (packed 6-bit registers)
-    - Stash: K * 24 bytes (8B primary hash + 4B secondary tag [96-bit fingerprint], 4B baseline, 4B exact count, 4B pad)
+    - Stash: K * 24 bytes (8B primary hash h1 + 4B secondary tag with MSB occupancy [95-bit composite fingerprint], 4B baseline c_base, 8B exact counter c_exact [uint64, no padding])
     - Variant B presence plane: variant_b_bits / 8 bytes
     """
     matrix_bytes = (d * w * counter_bits + 7) // 8

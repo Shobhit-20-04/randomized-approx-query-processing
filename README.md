@@ -26,15 +26,16 @@ All metrics are grounded in reproducible benchmarks on 64-bit Windows / Linux (x
 
 | Streaming Data Structure | Unified Query Support | Ingestion Latency (Native C++) | Ingestion Throughput (Native C++) | Frequency MAE (32 KB Budget) | AMQ False Positive Rate | Zero Underestimate Guarantee |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **AdaLog-Sketch (Ours)** | **Membership + Frequency + Cardinality + Top-$k$** | **45.52 ns/op** | **21.97 Mops/s** | **0.40** | **47.16% (Var A) / 0.11% (256KB)** | **Strictly 0 Underestimates** ($K \ge K_{sat}^*$) |
-| **Disjoint Stack (BF+CMS+HLL)** | Membership + Frequency + Cardinality | 50.09 ns/op | 19.96 Mops/s | 2.51 | 14.81% | Bounded by CMS |
-| **Augmented Sketch** (SIGMOD 2016) | Frequency + Top-$k$ | ~48 ns/op | ~20.8 Mops/s | 1.87 | N/A | Bounded |
-| **Elastic Sketch** (SIGCOMM 2018) | Frequency + Top-$k$ | ~48 ns/op | ~20.8 Mops/s | 1.90 | N/A | Bounded |
-| **Count-Min Sketch (CMS-CU)** | Frequency only | 35.04 ns/op | 28.55 Mops/s | 2.85 | N/A | Strictly $\hat{f} \ge f$ |
-| **Standard Bloom Filter** | Membership only | 12.73 ns/op | 79.04 Mops/s | N/A | Target FPR | Zero False Negatives |
-| **HyperLogLog (HLL)** | Cardinality only | 6.57 ns/op | 153.01 Mops/s | N/A | N/A | $\text{RSE} \approx 1.04/\sqrt{m}$ |
+| **AdaLog-Sketch (Ours)** | **Membership + Frequency + Cardinality + Top-$k$** | **45.52 $\pm$ 0.38 ns/op** | **21.97 Mops/s** | **0.61 $\pm$ 0.00** | **73.25% (32 KB) / 3.86% (128 KB)** | **Strictly 0 Underestimates** ($K \ge K_{sat}^*$) |
+| **Disjoint+Stash (Budget-Matched)** | Membership + Frequency + Cardinality | 50.43 $\pm$ 0.42 ns/op | 19.84 Mops/s | 0.98 $\pm$ 0.01 | 28.61% (32 KB) / 0.96% (128 KB) | **0 Underestimates** ($K \ge K_{sat}^*$) |
+| **Disjoint Stack (16-bit)** | Membership + Frequency + Cardinality | 50.43 ns/op | 19.84 Mops/s | 1.34 $\pm$ 0.01 | 1.82% (with dedicated BF) | 1 Underestimate (Saturation) |
+| **Elastic Sketch** (SIGCOMM 2018) | Frequency + Top-$k$ | 58.12 $\pm$ 0.65 ns/op | 17.21 Mops/s | 2.15 $\pm$ 0.04 | N/A (No Membership Support) | 54 Underestimates |
+| **Augmented Sketch** (SIGMOD 2016) | Frequency + Top-$k$ | ~52 ns/op | ~19.2 Mops/s | 2.48 $\pm$ 0.05 | N/A (No Membership Support) | 62 Underestimates |
+| **Count-Min Sketch (CMS-CU)** | Frequency only | 35.04 ns/op | 28.55 Mops/s | 2.85 $\pm$ 0.06 | N/A (No Membership Support) | Strictly $\hat{f} \ge f$ (Narrow sat: $\hat{f} \le f$) |
+| **Standard Bloom Filter** | Membership only | 12.73 ns/op | 79.04 Mops/s | N/A | Target FPR ($\approx 1.0\%$) | Zero False Negatives |
+| **HyperLogLog (HLL)** | Cardinality only | 6.57 ns/op | 153.01 Mops/s | N/A | N/A | $\text{RSE} \approx 1.04/\sqrt{m}$ (0.0239 at $m=1024$) |
 
-*Note: Native compiled C++ achieves 21.97 Mops/s; Python ctypes bindings operate at ~1.92 Mops/s due to cross-language FFI boundary overhead.*
+*Note: Benchmarks report mean $\pm$ 95% CI across 10 independent seeds on 300,000 operations ($\alpha = 1.25$ Zipfian skew). Native compiled C++ achieves 21.97 Mops/s (45.52 ns/op); Python ctypes bindings operate at ~1.92 Mops/s due to cross-language FFI boundary overhead.*
 
 ---
 

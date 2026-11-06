@@ -16,7 +16,7 @@ class StashEntry:
     key: KeyType
     base_count: int   # CMS estimate at the moment of promotion
     exact_count: int  # Increments accumulated while resident in stash
-    tag: int = 0      # 32-bit tag slice completing 96-bit composite fingerprint
+    tag: int = 0      # Secondary tag slice (31 bits in native C++ where bit 31 is occupancy flag, completing a 95-bit composite fingerprint with 64-bit h1)
 
     @property
     def total_count(self) -> int:
@@ -120,8 +120,13 @@ class ElephantStash:
     def logical_memory_bytes(self) -> int:
         """
         Logical hardware memory model: exactly 24 bytes per slot.
-        8B primary hash + 4B tag (with MSB occupancy bit) + 4B baseline + 8B exact counter = 24B.
-        For K=128: exactly 3,072 bytes.
+        - 8B: Primary 64-bit key hash h1 (Lane 0).
+        - 4B: Secondary tag (31-bit entropy mask 0x7FFFFFFF; MSB 0x80000000 is occupancy flag).
+              Together with the 64-bit primary hash, this yields an effective 95-bit composite fingerprint.
+        - 4B: Baseline count (c_base, uint32).
+        - 8B: Exact count accumulator (c_exact, uint64).
+        Total: 8 + 4 + 4 + 8 = 24 bytes (strictly zero padding).
+        For K=128: exactly 3,072 bytes (48 x 64-byte cache lines).
         """
         return self.capacity * 24
 
