@@ -31,6 +31,7 @@ ADALOG_EXPORT void adalog_decay(AdaLogHandle handle, double decay_factor);
 
 // Telemetry & Extraction
 ADALOG_EXPORT int adalog_get_top_k(AdaLogHandle handle, int k, uint64_t* out_hashes, uint64_t* out_counts);
+ADALOG_EXPORT int adalog_top_k_composite(AdaLogHandle handle, int k, uint64_t* out_hashes, uint32_t* out_tags, uint64_t* out_counts);
 ADALOG_EXPORT size_t adalog_get_memory_bytes(AdaLogHandle handle);
 ADALOG_EXPORT uint64_t adalog_get_stash_count(AdaLogHandle handle);
 ADALOG_EXPORT uint64_t adalog_get_stash_insertions(AdaLogHandle handle);

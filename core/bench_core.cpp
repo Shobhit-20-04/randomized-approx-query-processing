@@ -25,6 +25,65 @@ struct BenchmarkResult {
     double std_mops;
 };
 
+// Anti-optimization fence (prevents dead-code elimination and constant folding)
+template <class T>
+inline __attribute__((always_inline)) void do_not_optimize(T const& value) {
+    asm volatile("" : : "g"(value) : "memory");
+}
+
+struct QueryBenchmarkResult {
+    std::string name;
+    std::vector<double> latencies_ns;
+    double mean_ns;
+    double std_ns;
+    double median_ns;
+    double p25_ns;
+    double p75_ns;
+    double iqr_ns;
+};
+
+template<typename QueryFn>
+QueryBenchmarkResult run_query_benchmark(const std::string& name,
+                                         const std::vector<std::string>& keys,
+                                         size_t subset_size,
+                                         int n_queries,
+                                         int n_warmup,
+                                         int n_runs,
+                                         QueryFn query_fn) {
+    // Warm-up runs
+    for (int w = 0; w < n_warmup; ++w) {
+        for (int i = 0; i < n_queries; ++i) {
+            query_fn(keys[i % subset_size]);
+        }
+    }
+
+    std::vector<double> lats;
+    for (int r = 0; r < n_runs; ++r) {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < n_queries; ++i) {
+            query_fn(keys[i % subset_size]);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        double total_ns = std::chrono::duration<double, std::nano>(end - start).count();
+        lats.push_back(total_ns / (double)n_queries);
+    }
+
+    std::vector<double> sorted = lats;
+    std::sort(sorted.begin(), sorted.end());
+
+    double mean_ns = std::accumulate(lats.begin(), lats.end(), 0.0) / lats.size();
+    double sq_sum = 0.0;
+    for (double v : lats) sq_sum += (v - mean_ns) * (v - mean_ns);
+    double std_ns = std::sqrt(sq_sum / (lats.size() - 1));
+
+    double median_ns = sorted[sorted.size() / 2];
+    double p25_ns = sorted[sorted.size() / 4];
+    double p75_ns = sorted[(sorted.size() * 3) / 4];
+    double iqr_ns = p75_ns - p25_ns;
+
+    return {name, lats, mean_ns, std_ns, median_ns, p25_ns, p75_ns, iqr_ns};
+}
+
 template<typename ResetFn, typename UpdateFn>
 BenchmarkResult run_benchmark(const std::string& name, 
                               const std::vector<std::string>& keys, 
@@ -157,31 +216,30 @@ int main(int argc, char* argv[]) {
     );
     if (hll) { delete hll; hll = nullptr; }
 
-    // Query Latency Benchmark
-    std::cout << "\nBenchmarking Query Latencies...\n";
+    // Query Latency Benchmark (10 repetitions x 100,000 queries with anti-optimization fences)
+    std::cout << "\nBenchmarking Query Latencies (10 repetitions x 100,000 queries)...\n";
     adalog = new AdaLogCore(6682, 4, 8, 128, 15, 42);
     for (int i = 0; i < 50000; ++i) adalog->update(keys[i].data(), (int)keys[i].size(), 1);
 
-    auto q_start = std::chrono::high_resolution_clock::now();
-    volatile uint32_t sum = 0;
-    for (int i = 0; i < 100000; ++i) {
-        sum += adalog->estimate(keys[i % 50000].data(), (int)keys[i % 50000].size());
-    }
-    (void)sum;
-    auto q_end = std::chrono::high_resolution_clock::now();
-    double est_ns = std::chrono::duration<double, std::nano>(q_end - q_start).count() / 100000.0;
-
-    auto amq_start = std::chrono::high_resolution_clock::now();
-    uint32_t amq_hits = 0;
-    for (int i = 0; i < 100000; ++i) {
-        if (adalog->contains(keys[i % 50000].data(), (int)keys[i % 50000].size())) {
-            amq_hits++;
+    auto est_res = run_query_benchmark(
+        "adalog_estimate", keys, 50000, 100000, n_warmup, n_runs,
+        [&](const std::string& k) {
+            uint64_t v = adalog->estimate(k.data(), (int)k.size());
+            do_not_optimize(v);
         }
-    }
-    auto amq_end = std::chrono::high_resolution_clock::now();
-    if (amq_hits == 0xdeadbeef) std::cout << amq_hits;
-    double contains_ns = std::chrono::duration<double, std::nano>(amq_end - amq_start).count() / 100000.0;
+    );
+
+    auto contains_res = run_query_benchmark(
+        "adalog_contains", keys, 50000, 100000, n_warmup, n_runs,
+        [&](const std::string& k) {
+            bool v = adalog->contains(k.data(), (int)k.size());
+            do_not_optimize(v);
+        }
+    );
     delete adalog;
+
+    double est_ns = est_res.median_ns;
+    double contains_ns = contains_res.median_ns;
 
     std::vector<BenchmarkResult> all_results;
     all_results.push_back(adalog_res);
@@ -198,8 +256,10 @@ int main(int argc, char* argv[]) {
                r.name.c_str(), r.mean_mops, r.std_mops, r.mean_ns, r.std_ns, r.median_ns, r.iqr_ns);
     }
     std::cout << "----------------------------------------------------------------------------------------------------\n";
-    printf("Point Query Latency (estimate) : %6.1f ns/op\n", est_ns);
-    printf("Membership Query Latency (AMQ) : %6.1f ns/op\n", contains_ns);
+    printf("Point Query (estimate)   | Median: %5.2f ns | Mean: %5.2f +/- %4.2f ns | IQR: %4.2f ns (10 runs x 100k)\n",
+           est_res.median_ns, est_res.mean_ns, est_res.std_ns, est_res.iqr_ns);
+    printf("Membership Query (AMQ)   | Median: %5.2f ns | Mean: %5.2f +/- %4.2f ns | IQR: %4.2f ns (10 runs x 100k)\n",
+           contains_res.median_ns, contains_res.mean_ns, contains_res.std_ns, contains_res.iqr_ns);
 
     // Save JSON output
     std::ofstream ofs(out_path);
@@ -229,8 +289,14 @@ int main(int argc, char* argv[]) {
         ofs << "  },\n";
     }
     ofs << "  \"query_latencies\": {\n";
-    ofs << "    \"estimate_ns_op\": " << est_ns << ",\n";
-    ofs << "    \"contains_ns_op\": " << contains_ns << "\n";
+    ofs << "    \"estimate_ns_op\": " << est_res.median_ns << ",\n";
+    ofs << "    \"contains_ns_op\": " << contains_res.median_ns << ",\n";
+    ofs << "    \"estimate_mean_ns\": " << est_res.mean_ns << ",\n";
+    ofs << "    \"estimate_std_ns\": " << est_res.std_ns << ",\n";
+    ofs << "    \"estimate_iqr_ns\": " << est_res.iqr_ns << ",\n";
+    ofs << "    \"contains_mean_ns\": " << contains_res.mean_ns << ",\n";
+    ofs << "    \"contains_std_ns\": " << contains_res.std_ns << ",\n";
+    ofs << "    \"contains_iqr_ns\": " << contains_res.iqr_ns << "\n";
     ofs << "  },\n";
     ofs << "  \"summary\": {\n";
     ofs << "    \"speedup_vs_disjoint\": " << (disjoint_res.mean_ns / adalog_res.mean_ns) << ",\n";

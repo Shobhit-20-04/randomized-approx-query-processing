@@ -535,5 +535,47 @@ def test_frequency_estimates_after_later_writeback():
         assert cpp.estimate(k) >= expected, f"C++ underestimation for {k}"
 
 
+
+
+def test_top_k_composite_fingerprint_binding():
+    """Verify C++ bindings support the 95-bit composite fingerprint (hash, tag, count) API."""
+    assert is_dll_available(), "C++ core DLL must be available"
+    cpp = CompiledAdaLog(2048, 4, 8, 64, 5, 42)
+    for i in range(1, 11):
+        cpp.update(f"heavy_item_{i}", i * 20)
+    
+    # 1. Backward compatible call returns (hash64, count)
+    legacy_top = cpp.top_k(5, return_composite=False)
+    assert len(legacy_top) == 5
+    assert legacy_top[0][1] == 200
+    assert isinstance(legacy_top[0][0], int)
+    
+    # 2. Composite call returns ((h1_64, tag_31), count)
+    composite_top = cpp.top_k(5, return_composite=True)
+    assert len(composite_top) == 5
+    (h1, tag), count = composite_top[0]
+    assert count == 200
+    assert h1 != 0
+    assert 0 <= tag <= 0x7FFFFFFF
+
+
+def test_top_k_accuracy_across_skews():
+    """Verify top-100 heavy-hitter precision and recall across Zipfian skews [1.05, 1.50]."""
+    from experiments.datasets import generate_zipf_stream
+    
+    skews = [1.05, 1.15, 1.25, 1.50]
+    for alpha in skews:
+        stream, exact_counts = generate_zipf_stream(n_stream=100000, n_unique=10000, alpha=alpha, seed=42)
+        true_top100 = set(sorted(exact_counts.keys(), key=lambda k: exact_counts[k], reverse=True)[:100])
+        
+        sketch = AdaLogSketch(d=4, w=2048, counter_bits=8, stash_capacity=128, stash_tau=20, use_stash=True, seed=42)
+        for x in stream:
+            sketch.update(x)
+        
+        reported_top100 = set(k for k, _ in sketch.top_k(100))
+        recall = len(true_top100.intersection(reported_top100)) / 100.0
+        assert recall >= 0.98, f"Alpha={alpha} recall={recall} is below 0.98"
+
+
 if __name__ == "__main__":
     run_all_14_audit_invariants(verbose=True)

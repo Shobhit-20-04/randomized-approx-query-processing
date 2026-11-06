@@ -73,6 +73,9 @@ if lib:
     lib.adalog_top_k.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]
     lib.adalog_top_k.restype = ctypes.c_int
 
+    lib.adalog_top_k_composite.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint64)]
+    lib.adalog_top_k_composite.restype = ctypes.c_int
+
     lib.adalog_get_stash_count.argtypes = [ctypes.c_void_p]
     lib.adalog_get_stash_count.restype = ctypes.c_int
 
@@ -177,20 +180,39 @@ class CompiledAdaLog:
     def cardinality(self) -> float:
         return float(lib.adalog_cardinality(self._ptr))
 
-    def top_k(self, k: int, key_registry: dict[int, str | bytes] | None = None) -> list[tuple[int | str | bytes, int]]:
+    def top_k(
+        self,
+        k: int,
+        key_registry: dict | None = None,
+        return_composite: bool = False,
+    ) -> list[tuple[int | tuple[int, int] | str | bytes, int]]:
         """
-        Extracts top-k heavy hitters from the resident elephant stash.
-        Returns (64-bit primary hash, exact_count) pairs by default.
-        If an optional key_registry mapping {hash: key} is provided, returns (key, exact_count).
+        Extracts top-k heavy hitters from the resident elephant stash in O(K log k) time.
+        By default returns (64-bit primary hash, count) pairs.
+        If return_composite=True, returns ((primary_hash_64, tag_31), count) pairs (full 95-bit composite fingerprint).
+        If key_registry is provided, maps composite (hash, tag) or hash to original string/bytes key.
         """
         out_hashes = (ctypes.c_uint64 * k)()
+        out_tags = (ctypes.c_uint32 * k)()
         out_counts = (ctypes.c_uint64 * k)()
-        n = lib.adalog_top_k(self._ptr, k, out_hashes, out_counts)
+        n = lib.adalog_top_k_composite(self._ptr, k, out_hashes, out_tags, out_counts)
         res = []
         for i in range(n):
             h_val = int(out_hashes[i])
+            tag_val = int(out_tags[i])
             c_val = int(out_counts[i])
-            key_val = key_registry.get(h_val, h_val) if key_registry else h_val
+            composite_fp = (h_val, tag_val)
+
+            if key_registry:
+                if composite_fp in key_registry:
+                    key_val = key_registry[composite_fp]
+                elif h_val in key_registry:
+                    key_val = key_registry[h_val]
+                else:
+                    key_val = composite_fp if return_composite else h_val
+            else:
+                key_val = composite_fp if return_composite else h_val
+
             res.append((key_val, c_val))
         return res
 

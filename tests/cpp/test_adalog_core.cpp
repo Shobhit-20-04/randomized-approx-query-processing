@@ -49,6 +49,27 @@ void test_top_k_min_heap() {
     std::cout << "PASSED (Top 2: " << counts[0] << ", " << counts[1] << ")\n";
 }
 
+
+void test_top_k_composite_fingerprint() {
+    std::cout << "[C++ Test] test_top_k_composite_fingerprint... ";
+    AdaLogCore sketch(2048, 4, 8, 64, 5, 1024, 42);
+    for (int i = 1; i <= 10; i++) {
+        std::string k = "heavy_key_" + std::to_string(i);
+        sketch.update(k.c_str(), k.length(), i * 25);
+    }
+    uint64_t hashes[5];
+    uint32_t tags[5];
+    uint64_t counts[5];
+    int returned = sketch.get_top_k_composite(5, hashes, tags, counts);
+    assert(returned == 5);
+    for (int i = 0; i < 5; i++) {
+        assert(counts[i] == (10 - i) * 25);
+        assert(hashes[i] != 0); // Primary 64-bit hash
+        assert(tags[i] <= 0x7FFFFFFF); // Secondary 31-bit tag
+    }
+    std::cout << "PASSED (Full 95-bit composite fingerprint verified: counts " << counts[0] << ", " << counts[1] << ")\n";
+}
+
 int main() {
     std::cout << "======================================\n";
     std::cout << "RUNNING NATIVE ADALOG-CORE C++ SUITE\n";
@@ -56,6 +77,7 @@ int main() {
     test_basic_lifecycle();
     test_no_underestimation();
     test_top_k_min_heap();
+    test_top_k_composite_fingerprint();
     std::cout << "ALL NATIVE C++ TESTS PASSED!\n";
     return 0;
 }

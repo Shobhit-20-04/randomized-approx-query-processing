@@ -401,24 +401,22 @@ public:
         return raw;
     }
 
-    // Top-k heavy hitter extraction directly from stash.
-    // API Contract: Returns 64-bit primary key fingerprints (h1) and exact counts.
-    // In hardware/kernel environments where dynamic string memory allocation is avoided,
-    // keys are identified by their 64-bit hash; an application-level key registry
-    // maps hashes to original string keys when human-readable labels are required.
-    int get_top_k(int k, uint64_t* out_hashes, uint64_t* out_counts) const {
+    // Full 95-bit composite fingerprint extraction (O(K log k) via min-heap).
+    // API Contract: Returns primary 64-bit key_hash (Lane 0), 31-bit secondary tag (Lane 1 entropy),
+    // and exact accumulated count. Together (key_hash, tag) provide an unambiguous 95-bit composite
+    // fingerprint with negligible collision probability (P(collision) ~ 1/2^95 ~ 2.5e-29).
+    int get_top_k_composite(int k, uint64_t* out_hashes, uint32_t* out_tags, uint64_t* out_counts) const {
         if (!use_stash || stash_count == 0 || k <= 0) return 0;
 
-        // O(K log k) extraction using a size-k min-heap of pairs (count, key_hash)
-        using Entry = std::pair<uint64_t, uint64_t>;
-        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> min_heap;
+        using Item = std::tuple<uint64_t, uint64_t, uint32_t>; // count, key_hash, tag
+        std::priority_queue<Item, std::vector<Item>, std::greater<Item>> min_heap;
 
         for (int i = 0; i < stash_cap; i++) {
             if (stash_items[i].is_occupied()) {
-                Entry e = {stash_items[i].total(), stash_items[i].key_hash};
+                Item e = {stash_items[i].total(), stash_items[i].key_hash, stash_items[i].tag & 0x7FFFFFFFU};
                 if ((int)min_heap.size() < k) {
                     min_heap.push(e);
-                } else if (e.first > min_heap.top().first) {
+                } else if (std::get<0>(e) > std::get<0>(min_heap.top())) {
                     min_heap.pop();
                     min_heap.push(e);
                 }
@@ -426,13 +424,18 @@ public:
         }
 
         int ret_count = (int)min_heap.size();
-        // Extract elements in descending order (largest first)
         for (int i = ret_count - 1; i >= 0; i--) {
-            out_counts[i] = min_heap.top().first;
-            out_hashes[i] = min_heap.top().second;
+            out_counts[i] = std::get<0>(min_heap.top());
+            out_hashes[i] = std::get<1>(min_heap.top());
+            if (out_tags) out_tags[i] = std::get<2>(min_heap.top());
             min_heap.pop();
         }
         return ret_count;
+    }
+
+    // Backward-compatible 64-bit primary hash extraction
+    int get_top_k(int k, uint64_t* out_hashes, uint64_t* out_counts) const {
+        return get_top_k_composite(k, out_hashes, nullptr, out_counts);
     }
 
     // Actual allocated memory bytes: matrix + packed HLL + exactly 24 bytes per stash slot
@@ -664,6 +667,10 @@ extern "C" {
     ADALOG_API int adalog_top_k(void* ptr, int k, uint64_t* out_hashes, uint64_t* out_counts) {
         if (!ptr) return 0;
         return ((AdaLogCore*)ptr)->get_top_k(k, out_hashes, out_counts);
+    }
+    ADALOG_API int adalog_top_k_composite(void* ptr, int k, uint64_t* out_hashes, uint32_t* out_tags, uint64_t* out_counts) {
+        if (!ptr) return 0;
+        return ((AdaLogCore*)ptr)->get_top_k_composite(k, out_hashes, out_tags, out_counts);
     }
     ADALOG_API int adalog_get_stash_count(void* ptr) {
         if (!ptr) return 0;

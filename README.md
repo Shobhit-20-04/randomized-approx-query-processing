@@ -305,8 +305,8 @@ python benchmarks/scripts/exp1_memory_sweep.py
 
 ### 9.2 Headline Throughput & Latency (Compiled C++ Native Core)
 - **Ingestion Throughput:** **21.97 Mops/s** ($45.52\text{ ns/op}$), achieving a **1.11x speedup** over Disjoint Core ($19.84\text{ Mops/s}$, $50.43\text{ ns/op}$).
-- **Point Query Latency:** **14.0 ns/op** (`adalog_estimate`, raw 13.999 ns).
-- **Membership Query Latency:** **13.7 ns/op** (`adalog_contains`, raw 13.713 ns).
+- **Point Query Latency:** **14.5 ns/op** (`adalog_estimate`, median 14.48 ns, mean 14.55 +/- 0.20 ns, IQR 0.22 ns).
+- **Membership Query Latency:** **13.4 ns/op** (`adalog_contains`, median 13.43 ns, mean 13.48 +/- 0.14 ns, IQR 0.03 ns).
 
 ---
 
@@ -314,7 +314,7 @@ python benchmarks/scripts/exp1_memory_sweep.py
 
 1. **AMQ Coarse Filtering at Constrained Budgets:** Because AdaLog-Sketch does not allocate a dedicated bit-array for membership testing, AMQ checks whether $\min_j T[j, idx_j] > 0$. At tight budgets ($32\text{ KB}$), counter density causes a high false positive rate ($73.25\%$). As memory scales to $128\text{ KB}$, FPR drops rapidly to $3.86\%$. AdaLog-Sketch is optimized for environments where AMQ serves as a coarse filter or where zero marginal memory for membership is required.
 2. **Infinite Stream Saturation ($N > 10^7$):** Narrow 8-bit saturating counters ($C_{\max} = 255$) require periodic sliding-window resets or decay operations when stream volume $N$ exceeds $10^7$ operations. Unbounded accuracy without windowing is not claimed.
-3. **Top-$k$ Hash vs. Key Output:** The native C++ top-$k$ engine extracts 64-bit primary fingerprints to maintain zero dynamic heap allocations. Recovering original UTF-8 strings requires an application-level key registry or using the Python synopsis wrapper.
+3. **Top-$k$ Composite Fingerprint Identity:** The native C++ top-$k$ engine provides both `adalog_top_k` (returning 64-bit primary hash fingerprints) and `adalog_top_k_composite` (returning full 95-bit composite fingerprints `(uint64_t hash, uint32_t tag)` with collision probability $1/2^{95} \approx 2.52 \times 10^{-29}$). Recovering original UTF-8 strings requires an application-level key registry or using the Python synopsis wrapper.
 
 ---
 
