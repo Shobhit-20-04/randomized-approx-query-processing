@@ -86,7 +86,10 @@ assert len(unmatched_quotes) == 0, f"Unmatched quotes in bibitems: {unmatched_qu
 assert r"\IEEEauthorblockN{Shobhit Agrawal}" in text
 assert r"\IEEEauthorblockN{Mayuri Rajendra Pawar}" in text
 assert r"\IEEEauthorblockN{Dr. Parveen Sultana H}" in text
+assert r"\linebreakand" in text[:text.find(r"\maketitle")], "Missing \linebreakand in author block!"
+assert "Associate Dean in-charge and Faculty Guide" in text[:text.find(r"\maketitle")], "Missing faculty designation!"
+assert "School of Computer Science and Engineering (SCOPE)" in text[:text.find(r"\maketitle")], "Missing SCOPE in faculty block!"
 assert "minipage" not in text[:text.find(r"\maketitle")], "Minipage still in author block!"
-print("Author block verified: standard IEEEtran conference format, 0 minipages.")
+print("Author block verified: standard IEEEtran conference format, 0 minipages, faculty designation present, centered row 2.")
 
 print("\nALL VERIFICATION CHECKS PASSED PERFECTLY!")
