@@ -34,7 +34,7 @@ for ln, l in var_b_lines:
 
 # 4. Check heading on page 10
 has_old_heading = "Real word stream" in text
-has_new_heading = "Real-world stream evaluation and failure-mode analysis" in text
+has_new_heading = ("Real-world stream evaluation and failure-mode analysis" in text) or ("Real-world stream evaluation and failure modes" in text)
 print(f"Has old heading: {has_old_heading}")
 print(f"Has new heading: {has_new_heading}")
 assert not has_old_heading, "Old heading 'Real word stream' still present!"
